@@ -1,0 +1,15 @@
+
+spring:
+    application:
+        name:queryExecution
+    kafka:
+        consumer:
+            value_deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+            properties:
+                spring.json.trusted.properties:"*"
+data:
+    mongodb:
+        uri: "mongodb://localhost:3000/db"
+        sub_query_collection_name: "${subQueryCollection:sub_queries}}"
+sub_query_generated_topic: incoming_sub_queries_${tenant:default}
+sub_query_generated_event_consumer_group: incoming_sub_queries_group_${tenant:default}
