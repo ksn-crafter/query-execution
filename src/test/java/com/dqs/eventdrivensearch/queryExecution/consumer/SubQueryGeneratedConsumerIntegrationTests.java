@@ -43,7 +43,7 @@ import static org.awaitility.Awaitility.await;
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ActiveProfiles("test")
-@EmbeddedKafka(partitions = 1, topics = {"incoming_sub_queries_default"})
+@EmbeddedKafka(partitions = 1, topics = {"incoming_sub_queries_jpmc"})
 class SubQueryGeneratedConsumerIntegrationTests {
 
     private KafkaTemplate<String, SubQueryGenerated> kafkaTemplate;
@@ -99,7 +99,7 @@ class SubQueryGeneratedConsumerIntegrationTests {
     void updatesQueryDescriptionAndSavesSubQuery() {
         queryDescriptionRepository.save(new QueryDescription("query-510", "Deutsche", "Historical", 2001, 2007, QueryStatus.Acknowledged, LocalDateTime.now()));
         String[] indexPaths = {"path-1","path-2"};
-        kafkaTemplate.send("incoming_sub_queries_default", new SubQueryGenerated("query-510", "subquery-1",indexPaths));
+        kafkaTemplate.send("incoming_sub_queries_jpmc", new SubQueryGenerated("query-510", "subquery-1",indexPaths));
 
         await().atMost(ofSeconds(10)).untilAsserted(() -> {
             Optional<SubQuery> subQuery = subQueryRepository.findBySubQueryId("subquery-1");
