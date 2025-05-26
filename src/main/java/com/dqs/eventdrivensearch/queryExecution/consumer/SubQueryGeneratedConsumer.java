@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class SubQueryGeneratedConsumer {
-    private final String topic;
-    private final String consumerGroupId;
+    public final String topic;
+    public final String consumerGroupId;
     private final QueryDescriptionService queryDescriptionService;
     private final IndexSequenceProcessor indexSequenceProcessor;
 
@@ -30,10 +30,10 @@ public class SubQueryGeneratedConsumer {
     public void consume(SubQueryGenerated subQueryGenerated) {
         queryDescriptionService.updateQueryDescriptionAndSaveSubQuery(new SubQuery(subQueryGenerated.queryId(), subQueryGenerated.subQueryId(), subQueryGenerated.indexPaths()));
         QueryDescription queryDescription = queryDescriptionService.findQueryDescriptionByQueryId(subQueryGenerated.queryId());
-        try {
-            indexSequenceProcessor.processIndexSequence(queryDescription.term(),subQueryGenerated.queryId() ,subQueryGenerated.indexPaths());
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
-        }
+//        try {
+//            indexSequenceProcessor.processIndexSequence(queryDescription.term(),subQueryGenerated.queryId() ,subQueryGenerated.indexPaths());
+//        } catch (ParseException e) {
+//            throw new RuntimeException(e);
+//        }
     }
 }

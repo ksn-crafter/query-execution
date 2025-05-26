@@ -6,7 +6,6 @@ import com.dqs.eventdrivensearch.queryExecution.model.QueryStatus;
 import com.dqs.eventdrivensearch.queryExecution.model.SubQuery;
 import com.dqs.eventdrivensearch.queryExecution.repository.QueryDescriptionRepository;
 import com.dqs.eventdrivensearch.queryExecution.repository.SubQueryRepository;
-import com.dqs.eventdrivensearch.queryExecution.services.QueryDescriptionService;
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodStarter;
 import de.flapdoodle.embed.mongo.config.MongodConfig;
@@ -33,7 +32,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -99,17 +97,17 @@ class SubQueryGeneratedConsumerIntegrationTests {
 
     @Test
     void updatesQueryDescriptionAndSavesSubQuery() {
-//        queryDescriptionRepository.save(new QueryDescription("query-510", "Deutsche", "Historical", 2001, 2007, QueryStatus.Acknowledged, LocalDateTime.now()));
-//
-//        kafkaTemplate.send("incoming_sub_queries_default", new SubQueryGenerated("query-510", "subquery-1",new String[3]));
-//
-//        await().atMost(ofSeconds(10)).untilAsserted(() -> {
-//             SubQuery subQuery = subQueryRepository.findBySubQueryId("subquery-1").get();
-//            assertThat(subQuery.subQueryId()).isEqualTo("subquery-1");
-//
-//            QueryDescription queryDescription = queryDescriptionRepository.findByQueryId("query-510").get();
-//            assertThat(queryDescription.status()).isEqualTo(QueryStatus.InProgress);
-//        });
+        queryDescriptionRepository.save(new QueryDescription("query-510", "Deutsche", "Historical", 2001, 2007, QueryStatus.Acknowledged, LocalDateTime.now()));
+        String[] indexPaths = {"path-1","path-2"};
+        kafkaTemplate.send("incoming_sub_queries_default", new SubQueryGenerated("query-510", "subquery-1",indexPaths));
+
+        await().atMost(ofSeconds(10)).untilAsserted(() -> {
+            Optional<SubQuery> subQuery = subQueryRepository.findBySubQueryId("subquery-1");
+            assertThat(subQuery.get().subQueryId()).isEqualTo("subquery-1");
+
+            QueryDescription queryDescription = queryDescriptionRepository.findByQueryId("query-510").get();
+            assertThat(queryDescription.status()).isEqualTo(QueryStatus.InProgress);
+        });
     }
 
 }
