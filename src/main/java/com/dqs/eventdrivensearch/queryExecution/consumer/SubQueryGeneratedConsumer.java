@@ -31,6 +31,6 @@ public class SubQueryGeneratedConsumer {
             throw new RuntimeException(e);
         }
         //TODO: figure out the result path here
-        subQueryExecutedProducer.produce(new SubQueryExecuted(subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), ""),queryDescription.tenantId());
+        subQueryExecutedProducer.produce(new SubQueryExecuted(subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), "",subQueryGenerated.totalSubQueries()),queryDescription.tenantId());
     }
 }

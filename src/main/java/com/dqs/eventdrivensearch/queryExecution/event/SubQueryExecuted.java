@@ -12,12 +12,16 @@ public class SubQueryExecuted {
     @JsonProperty
     private String resultsPath;
 
+    @JsonProperty
+    private int totalSubQueries;
+
     public SubQueryExecuted(){}
 
-    public SubQueryExecuted(String subQueryId,String queryId,String resultsPath) {
+    public SubQueryExecuted(String subQueryId,String queryId,String resultsPath,int totalSubQueries) {
         this.queryId = queryId;
         this.subQueryId = subQueryId;
         this.resultsPath = resultsPath;
+        this.totalSubQueries = totalSubQueries;
     }
 
     public String queryId(){

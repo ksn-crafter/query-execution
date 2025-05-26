@@ -99,7 +99,7 @@ class SubQueryGeneratedConsumerIntegrationTests {
     void updatesQueryDescriptionAndSavesSubQuery() {
         queryDescriptionRepository.save(new QueryDescription("query-510", "Deutsche", "Historical", 2001, 2007, QueryStatus.Acknowledged, LocalDateTime.now()));
         String[] indexPaths = {"path-1","path-2"};
-        kafkaTemplate.send("incoming_sub_queries_jpmc", new SubQueryGenerated("query-510", "subquery-1",indexPaths));
+        kafkaTemplate.send("incoming_sub_queries_jpmc", new SubQueryGenerated("query-510", "subquery-1",indexPaths,2));
 
         await().atMost(ofSeconds(10)).untilAsserted(() -> {
             Optional<SubQuery> subQuery = subQueryRepository.findBySubQueryId("subquery-1");

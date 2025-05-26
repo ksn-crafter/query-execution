@@ -9,13 +9,16 @@ public class SubQueryGenerated {
     String subQueryId;
     @JsonProperty
     String[] indexPaths;
+    @JsonProperty
+    int totalSubQueries;
 
     public SubQueryGenerated(){}
 
-    public SubQueryGenerated(String queryId,String subQueryId,String[] indexPaths){
+    public SubQueryGenerated(String queryId,String subQueryId,String[] indexPaths,int totalSubQueries){
         this.queryId = queryId;
         this.subQueryId = subQueryId;
         this.indexPaths = indexPaths;
+        this.totalSubQueries = totalSubQueries;
     }
 
     public String queryId(){
@@ -30,4 +33,7 @@ public class SubQueryGenerated {
         return indexPaths;
     }
 
+    public int totalSubQueries(){
+        return totalSubQueries;
+    }
 }
