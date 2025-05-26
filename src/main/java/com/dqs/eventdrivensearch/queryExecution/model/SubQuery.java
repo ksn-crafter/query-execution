@@ -11,7 +11,7 @@ public class SubQuery {
     @Id
     private String id;
     private String queryId;
-    private SubQueryId subQueryId;
+    private String subQueryId;
     private String[] indexPaths;
     private SubQueryStatus status;
     private LocalDateTime creationTime;
@@ -20,7 +20,7 @@ public class SubQuery {
     public SubQuery() {
     }
 
-    public SubQuery(String queryId, SubQueryId subQueryId, String[] indexPaths) {
+    public SubQuery(String queryId, String subQueryId, String[] indexPaths) {
         this.queryId = queryId;
         this.subQueryId = subQueryId;
         this.indexPaths = indexPaths;
@@ -32,7 +32,7 @@ public class SubQuery {
         return queryId;
     }
 
-    public SubQueryId subQueryId() {
+    public String subQueryId() {
         return subQueryId;
     }
 
@@ -60,7 +60,7 @@ public class SubQuery {
         this.indexPaths = indexPaths;
     }
 
-    public void setSubQueryId(SubQueryId subQueryId) {
+    public void setSubQueryId(String subQueryId) {
         this.subQueryId = subQueryId;
     }
 

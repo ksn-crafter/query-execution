@@ -18,6 +18,16 @@ public class QueryDescription {
 
     public QueryDescription() {}
 
+    public QueryDescription(String queryId, String tenantId, String term, int yearStart, int yearEnd, QueryStatus status, LocalDateTime creationTime) {
+        this.queryId = queryId;
+        this.tenantId = tenantId;
+        this.term = term;
+        this.yearStart = yearStart;
+        this.yearEnd = yearEnd;
+        this.status = status;
+        this.creationTime = creationTime;
+    }
+
     public String queryId() {
         return queryId;
     }
