@@ -20,8 +20,8 @@ public class SubQueryExecutedProducer {
                 subQueryExecuted);
     }
 
-    private String topicNameFor(String s) {
-        return s;
+    private String topicNameFor(String tenantId) {
+        return topicPrefix + tenantId;
     }
 
 }
