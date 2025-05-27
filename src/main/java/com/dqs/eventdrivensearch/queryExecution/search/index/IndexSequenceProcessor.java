@@ -27,7 +27,9 @@ public class IndexSequenceProcessor {
         Instant start = Instant.now();
 
         IndexSearcher indexSearcher = new IndexSearcher();
-        String queryResultLocation = EnvironmentVars.getOutPutFolderPath();
+        final String queryResultLocation = EnvironmentVars.getOutPutFolderPath().endsWith("/")
+                                            ? EnvironmentVars.getOutPutFolderPath() + queryId
+                                            : EnvironmentVars.getOutPutFolderPath() + "/" + queryId;
         List<Future> tasks = new ArrayList<>();
 
         var query = indexSearcher.getQuery(searchQueryString, new StandardAnalyzer());

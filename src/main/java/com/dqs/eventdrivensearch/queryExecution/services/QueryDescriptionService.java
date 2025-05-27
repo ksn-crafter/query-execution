@@ -25,11 +25,11 @@ public class QueryDescriptionService {
 
     @Transactional(propagation = Propagation.REQUIRED)
     public void updateQueryDescriptionStatusToInProgress(String queryId){
-      Optional<QueryDescription> queryDescription =  queryDescriptionRepository.findById(queryId);
-      if(queryDescription.isPresent()){
-          QueryDescription anotherQueryDescription = queryDescription.get();
-          anotherQueryDescription.setStatusToInProgress();
-          queryDescriptionRepository.save(anotherQueryDescription);
+      Optional<QueryDescription> optionalQueryDescription =  queryDescriptionRepository.findById(queryId);
+      if(optionalQueryDescription.isPresent()){
+          QueryDescription queryDescription = optionalQueryDescription.get();
+          queryDescription.setStatusToInProgress();
+          queryDescriptionRepository.save(queryDescription);
       }else{
           throw new RuntimeException(String.format("Query Description with id %s not found",queryId));
       }
