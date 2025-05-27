@@ -25,14 +25,14 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public class SingleIndexSearcher {
+class SingleIndexSearcher {
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
-    public SearchResult search(String zipFilePath, Query query,String queryId) throws IOException {
+    SearchResult search(String zipFilePath, Query query,String queryId) throws IOException {
         Path targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
         Directory directory = null;
 
-        decompressZipFileOptimized(zipFilePath, targetTempDirectory,queryId);
+        downloadZipAndUnzipInDirectory(zipFilePath, targetTempDirectory,queryId);
         directory = new MMapDirectory(targetTempDirectory);
 
         Instant start = Instant.now();
@@ -59,7 +59,7 @@ public class SingleIndexSearcher {
         }
     }
 
-    public void decompressZipFileOptimized(String zipFilePath, Path outputDir,String queryId) throws IOException {
+    private void downloadZipAndUnzipInDirectory(String zipFilePath, Path outputDir, String queryId) throws IOException {
         if (!Files.exists(outputDir)) {
             Files.createDirectories(outputDir);
         }
@@ -93,7 +93,7 @@ public class SingleIndexSearcher {
         MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.UNZIP_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(),queryId);
     }
 
-    public static SearchResult readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {
+    private static SearchResult readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {
 
         final int optimalPageSize = 30000; // Number of results per page
         ScoreDoc lastDoc = null; // Starting point for pagination (null for first page)
@@ -130,7 +130,7 @@ public class SingleIndexSearcher {
         return new SearchResult(documentIds, searcher.getIndexReader().numDocs(), totalHits, documentIds.size());
     }
 
-    public Query getQuery(String queryString, StandardAnalyzer analyzer) throws ParseException {
+    Query getQuery(String queryString, StandardAnalyzer analyzer) throws ParseException {
         MultiFieldQueryParser parser = new MultiFieldQueryParser(DOCUMENT_FIELDS, analyzer);
         return parser.parse(queryString);
     }

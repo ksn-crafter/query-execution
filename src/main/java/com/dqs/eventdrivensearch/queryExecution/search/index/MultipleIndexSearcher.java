@@ -30,7 +30,7 @@ public class MultipleIndexSearcher {
         final String queryResultLocation = EnvironmentVars.getOutPutFolderPath().endsWith("/")
                                             ? EnvironmentVars.getOutPutFolderPath() + queryId
                                             : EnvironmentVars.getOutPutFolderPath() + "/" + queryId;
-        List<Future> tasks = new ArrayList<>();
+        List<Future> searchTasks = new ArrayList<>();
 
         var query = singleIndexSearcher.getQuery(searchQueryString, new StandardAnalyzer());
         ExecutorService executorService = Executors.newWorkStealingPool(Runtime.getRuntime().availableProcessors()-1);
@@ -38,16 +38,16 @@ public class MultipleIndexSearcher {
             for (String filePath : filePaths) {
                 var task = executorService.submit(() -> {
                     try {
-                        processIndexFile(queryResultLocation, filePath, singleIndexSearcher, query,queryId);
+                        searchOnSingleIndex(queryResultLocation, filePath, singleIndexSearcher, query,queryId);
                     } catch (IOException | ParseException e) {
                         logger.log(Level.WARNING, e.getMessage() + "\n" + e.getStackTrace() + "\n" + "filePath: " + filePath);
                         throw new RuntimeException(e);
                     }
                 });
-                tasks.add(task);
+                searchTasks.add(task);
             }
 
-            for (Future task : tasks) {
+            for (Future task : searchTasks) {
                 while (!task.isDone()) ;
             }
 
@@ -59,7 +59,7 @@ public class MultipleIndexSearcher {
         }
     }
 
-    private static void processIndexFile(String queryResultLocation, String filePath, SingleIndexSearcher singleIndexSearcher, Query query, String queryId) throws IOException, ParseException {
+    private static void searchOnSingleIndex(String queryResultLocation, String filePath, SingleIndexSearcher singleIndexSearcher, Query query, String queryId) throws IOException, ParseException {
         Instant start = Instant.now();
 
         SearchResult searchResult = singleIndexSearcher.search(filePath, query,queryId);
