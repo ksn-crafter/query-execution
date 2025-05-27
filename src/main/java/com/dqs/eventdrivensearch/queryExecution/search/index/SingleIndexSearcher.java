@@ -1,7 +1,6 @@
 package com.dqs.eventdrivensearch.queryExecution.search.index;
 
 
-import com.dqs.eventdrivensearch.queryExecution.search.io.EnvironmentVars;
 import com.dqs.eventdrivensearch.queryExecution.search.io.FileStream;
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
@@ -26,7 +25,7 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public class IndexSearcher {
+public class SingleIndexSearcher {
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
     public SearchResult search(String zipFilePath, Query query,String queryId) throws IOException {

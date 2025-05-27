@@ -19,26 +19,26 @@ import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class IndexSequenceProcessor {
+public class MultipleIndexSearcher {
 
-    private static final Logger logger = Logger.getLogger(IndexSequenceProcessor.class.getName());
+    private static final Logger logger = Logger.getLogger(MultipleIndexSearcher.class.getName());
 
-    public void processIndexSequence(String searchQueryString,String queryId, String[] filePaths) throws ParseException {
+    public void search(String searchQueryString, String queryId, String[] filePaths) throws ParseException {
         Instant start = Instant.now();
 
-        IndexSearcher indexSearcher = new IndexSearcher();
+        SingleIndexSearcher singleIndexSearcher = new SingleIndexSearcher();
         final String queryResultLocation = EnvironmentVars.getOutPutFolderPath().endsWith("/")
                                             ? EnvironmentVars.getOutPutFolderPath() + queryId
                                             : EnvironmentVars.getOutPutFolderPath() + "/" + queryId;
         List<Future> tasks = new ArrayList<>();
 
-        var query = indexSearcher.getQuery(searchQueryString, new StandardAnalyzer());
+        var query = singleIndexSearcher.getQuery(searchQueryString, new StandardAnalyzer());
         ExecutorService executorService = Executors.newWorkStealingPool(Runtime.getRuntime().availableProcessors()-1);
         try{
             for (String filePath : filePaths) {
                 var task = executorService.submit(() -> {
                     try {
-                        processIndexFile(queryResultLocation, filePath, indexSearcher, query,queryId);
+                        processIndexFile(queryResultLocation, filePath, singleIndexSearcher, query,queryId);
                     } catch (IOException | ParseException e) {
                         logger.log(Level.WARNING, e.getMessage() + "\n" + e.getStackTrace() + "\n" + "filePath: " + filePath);
                         throw new RuntimeException(e);
@@ -59,10 +59,10 @@ public class IndexSequenceProcessor {
         }
     }
 
-    private static void processIndexFile(String queryResultLocation, String filePath, IndexSearcher indexSearcher, Query query,String queryId) throws IOException, ParseException {
+    private static void processIndexFile(String queryResultLocation, String filePath, SingleIndexSearcher singleIndexSearcher, Query query, String queryId) throws IOException, ParseException {
         Instant start = Instant.now();
 
-        SearchResult searchResult = indexSearcher.search(filePath, query,queryId);
+        SearchResult searchResult = singleIndexSearcher.search(filePath, query,queryId);
 
         MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_INDEX_SHARD_LOAD_INTO_LUCENE_DIRECTORY_AND_SEARCH, Duration.between(start, Instant.now()).toMillis(),queryId);
 

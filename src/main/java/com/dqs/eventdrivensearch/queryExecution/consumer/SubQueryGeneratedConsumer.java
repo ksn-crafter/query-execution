@@ -5,7 +5,7 @@ import com.dqs.eventdrivensearch.queryExecution.event.SubQueryGenerated;
 import com.dqs.eventdrivensearch.queryExecution.model.QueryDescription;
 import com.dqs.eventdrivensearch.queryExecution.model.SubQuery;
 import com.dqs.eventdrivensearch.queryExecution.producer.SubQueryExecutedProducer;
-import com.dqs.eventdrivensearch.queryExecution.search.index.IndexSequenceProcessor;
+import com.dqs.eventdrivensearch.queryExecution.search.index.MultipleIndexSearcher;
 import com.dqs.eventdrivensearch.queryExecution.services.QueryDescriptionService;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.springframework.stereotype.Component;
@@ -13,12 +13,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class SubQueryGeneratedConsumer {
     private final QueryDescriptionService queryDescriptionService;
-    private final IndexSequenceProcessor indexSequenceProcessor;
+    private final MultipleIndexSearcher multipleIndexSearcher;
     private final SubQueryExecutedProducer subQueryExecutedProducer;
 
     public SubQueryGeneratedConsumer(QueryDescriptionService queryDescriptionService, SubQueryExecutedProducer producer) {
         this.queryDescriptionService = queryDescriptionService;
-        indexSequenceProcessor = new IndexSequenceProcessor();
+        multipleIndexSearcher = new MultipleIndexSearcher();
         this.subQueryExecutedProducer = producer;
     }
 
@@ -26,7 +26,7 @@ public class SubQueryGeneratedConsumer {
         queryDescriptionService.updateQueryDescriptionAndSaveSubQuery(new SubQuery(subQueryGenerated.queryId(), subQueryGenerated.subQueryId(), subQueryGenerated.indexPaths()));
         QueryDescription queryDescription = queryDescriptionService.findQueryDescriptionByQueryId(subQueryGenerated.queryId());
         try {
-            indexSequenceProcessor.processIndexSequence(queryDescription.term(),subQueryGenerated.queryId() ,subQueryGenerated.indexPaths());
+            multipleIndexSearcher.search(queryDescription.term(),subQueryGenerated.queryId() ,subQueryGenerated.indexPaths());
         } catch (ParseException e) {
             System.out.println(e.getMessage() + "\n" + e.getStackTrace());
         }
