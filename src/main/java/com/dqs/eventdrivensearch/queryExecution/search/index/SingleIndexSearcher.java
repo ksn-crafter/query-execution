@@ -28,11 +28,11 @@ import java.util.zip.ZipInputStream;
 class SingleIndexSearcher {
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
-    SearchResult search(String zipFilePath, Query query,String queryId) throws IOException {
+    SearchResult search(String zipFilePath, Query query, String queryId) throws IOException {
         Path targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
         Directory directory = null;
 
-        downloadZipAndUnzipInDirectory(zipFilePath, targetTempDirectory,queryId);
+        downloadZipAndUnzipInDirectory(zipFilePath, targetTempDirectory, queryId);
         directory = new MMapDirectory(targetTempDirectory);
 
         Instant start = Instant.now();
@@ -41,7 +41,7 @@ class SingleIndexSearcher {
         org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
 
         SearchResult searchResult = readResults(searcher, query);
-        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(),queryId);
+        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
 
         deleteTempDirectory(targetTempDirectory.toFile());
 
@@ -64,7 +64,7 @@ class SingleIndexSearcher {
             Files.createDirectories(outputDir);
         }
 
-        InputStream inputStream = FileStream.getInputStream(zipFilePath,queryId);
+        InputStream inputStream = FileStream.getInputStream(zipFilePath, queryId);
         Instant start = Instant.now();
 
         final int OPTIMAL_STREAM_BUFFER_SIZE = 1048576;
@@ -87,10 +87,10 @@ class SingleIndexSearcher {
                 }
                 zipIn.closeEntry();
             }
-        }finally {
+        } finally {
             inputStream.close();
         }
-        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.UNZIP_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(),queryId);
+        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.UNZIP_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
     }
 
     private static SearchResult readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {

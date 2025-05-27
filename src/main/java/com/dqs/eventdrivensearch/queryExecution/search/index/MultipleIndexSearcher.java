@@ -28,17 +28,17 @@ public class MultipleIndexSearcher {
 
         SingleIndexSearcher singleIndexSearcher = new SingleIndexSearcher();
         final String queryResultLocation = EnvironmentVars.getOutPutFolderPath().endsWith("/")
-                                            ? EnvironmentVars.getOutPutFolderPath() + queryId
-                                            : EnvironmentVars.getOutPutFolderPath() + "/" + queryId;
+                ? EnvironmentVars.getOutPutFolderPath() + queryId
+                : EnvironmentVars.getOutPutFolderPath() + "/" + queryId;
         List<Future> searchTasks = new ArrayList<>();
 
         var query = singleIndexSearcher.getQuery(searchQueryString, new StandardAnalyzer());
-        ExecutorService executorService = Executors.newWorkStealingPool(Runtime.getRuntime().availableProcessors()-1);
-        try{
+        ExecutorService executorService = Executors.newWorkStealingPool(Runtime.getRuntime().availableProcessors() - 1);
+        try {
             for (String filePath : filePaths) {
                 var task = executorService.submit(() -> {
                     try {
-                        searchOnSingleIndex(queryResultLocation, filePath, singleIndexSearcher, query,queryId);
+                        searchOnSingleIndex(queryResultLocation, filePath, singleIndexSearcher, query, queryId);
                     } catch (IOException | ParseException e) {
                         logger.log(Level.WARNING, e.getMessage() + "\n" + e.getStackTrace() + "\n" + "filePath: " + filePath);
                         throw new RuntimeException(e);
@@ -51,23 +51,23 @@ public class MultipleIndexSearcher {
                 while (!task.isDone()) ;
             }
 
-        }catch(Exception e){
+        } catch (Exception e) {
             System.out.println(e.getMessage() + "\n" + e.getStackTrace());
-        }finally {
+        } finally {
             executorService.shutdown();
-            MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.INTERNAL_SEARCH_TIME, Duration.between(start, Instant.now()).toMillis(),queryId);
+            MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.INTERNAL_SEARCH_TIME, Duration.between(start, Instant.now()).toMillis(), queryId);
         }
     }
 
     private static void searchOnSingleIndex(String queryResultLocation, String filePath, SingleIndexSearcher singleIndexSearcher, Query query, String queryId) throws IOException, ParseException {
         Instant start = Instant.now();
 
-        SearchResult searchResult = singleIndexSearcher.search(filePath, query,queryId);
+        SearchResult searchResult = singleIndexSearcher.search(filePath, query, queryId);
 
-        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_INDEX_SHARD_LOAD_INTO_LUCENE_DIRECTORY_AND_SEARCH, Duration.between(start, Instant.now()).toMillis(),queryId);
+        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_INDEX_SHARD_LOAD_INTO_LUCENE_DIRECTORY_AND_SEARCH, Duration.between(start, Instant.now()).toMillis(), queryId);
 
         start = Instant.now();
         FileStream.writeToTxtFile(searchResult, queryResultLocation, filePath);
-        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.WRITE_RESULT_TO_S3_FOR_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(),queryId);
+        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.WRITE_RESULT_TO_S3_FOR_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
     }
 }
