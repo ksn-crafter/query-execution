@@ -4,9 +4,9 @@ spring:
         name:queryExecution
     kafka:
         bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-data:
-    mongodb:
-        uri: "mongodb://localhost:3000/db"
-        sub_query_collection_name: "${subQueryCollection:sub_queries}}"
+    data:
+        mongodb:
+            uri: "mongodb://localhost:3000/db"
+            sub_query_collection_name: "${subQueryCollection:sub_queries}}"
 sub_query_generated_topic: incoming_sub_queries_${tenant:default}
 sub_query_generated_event_consumer_group: incoming_sub_queries_group_${tenant:default}

@@ -18,6 +18,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junitpioneer.jupiter.SetEnvironmentVariable;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
@@ -34,10 +36,9 @@ import org.springframework.test.context.DynamicPropertySource;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
-import static java.time.Duration.ofSeconds;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
 
 @SpringBootTest
@@ -96,18 +97,25 @@ class SubQueryGeneratedConsumerIntegrationTests {
     }
 
     @Test
+    @SetEnvironmentVariable(key="OUTPUT_FOLDER_PATH",value="s3://test-bucket/")
     void updatesQueryDescriptionAndSavesSubQuery() {
         queryDescriptionRepository.save(new QueryDescription("query-510", "Deutsche", "Historical", 2001, 2007, QueryStatus.Acknowledged, LocalDateTime.now()));
-        String[] indexPaths = {"path-1","path-2"};
-        kafkaTemplate.send("incoming_sub_queries_jpmc", new SubQueryGenerated("query-510", "subquery-1",indexPaths,2));
+        String[] indexPaths = {"path-1", "path-2"};
+        kafkaTemplate.send("incoming_sub_queries_jpmc", new SubQueryGenerated("query-510", "subquery-1", indexPaths, 2));
 
-        await().atMost(ofSeconds(10)).untilAsserted(() -> {
-            Optional<SubQuery> subQuery = subQueryRepository.findBySubQueryId("subquery-1");
-            assertThat(subQuery.get().subQueryId()).isEqualTo("subquery-1");
+        // we are waiting for the mongo transaction to finish here
+        try {
+            TimeUnit.SECONDS.sleep(5);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
 
-            QueryDescription queryDescription = queryDescriptionRepository.findByQueryId("query-510").get();
-            assertThat(queryDescription.status()).isEqualTo(QueryStatus.InProgress);
-        });
+        Optional<SubQuery> subQuery = subQueryRepository.findBySubQueryId("subquery-1");
+        assertThat(subQuery.get().subQueryId()).isEqualTo("subquery-1");
+
+        QueryDescription queryDescription = queryDescriptionRepository.findByQueryId("query-510").get();
+        assertThat(queryDescription.status()).isEqualTo(QueryStatus.InProgress);
+
     }
 
 }
