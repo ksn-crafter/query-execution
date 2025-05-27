@@ -28,9 +28,11 @@ public class SubQueryGeneratedConsumer {
         try {
             indexSequenceProcessor.processIndexSequence(queryDescription.term(),subQueryGenerated.queryId() ,subQueryGenerated.indexPaths());
         } catch (ParseException e) {
+            //TODO: figure out a better way to handle this
             throw new RuntimeException(e);
         }
         //TODO: figure out the result path here
         subQueryExecutedProducer.produce(new SubQueryExecuted(subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), "",subQueryGenerated.totalSubQueries()),queryDescription.tenantId());
+        //TODO: figure out the consumer acknowledgement
     }
 }
