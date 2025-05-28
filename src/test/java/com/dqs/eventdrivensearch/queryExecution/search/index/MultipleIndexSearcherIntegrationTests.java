@@ -27,7 +27,6 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
@@ -74,7 +73,6 @@ public class MultipleIndexSearcherIntegrationTests {
     }
 
     @Test
-    //@SetEnvironmentVariable(key="OUTPUT_FOLDER_PATH",value="https://test-bucket.s3.us-east-1.amazonaws.com/result")
     public void shouldSearchOnIndexAndWriteResultToS3() throws ParseException {
         //note: ensure that the s3OutputPath is same as the OUTPUT_FOLDER_PATH environment variable
         //which is set via SetEnvironmentVariable annotation on the tests

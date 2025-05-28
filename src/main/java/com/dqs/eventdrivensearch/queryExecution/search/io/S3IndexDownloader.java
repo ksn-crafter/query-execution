@@ -24,11 +24,14 @@ import java.util.logging.Logger;
 public class S3IndexDownloader {
     private static final Logger logger = Logger.getLogger(S3IndexDownloader.class.getName());
 
-    @Autowired
     private S3Client s3Client;
 
-    @Autowired
     private MetricsPublisher metricsPublisher;
+
+    public S3IndexDownloader(S3Client s3Client,MetricsPublisher metricsPublisher){
+        this.s3Client = s3Client;
+        this.metricsPublisher = metricsPublisher;
+    }
 
     public InputStream getInputStream(String filePath,String queryId) {
         InputStream inputStream = null;
