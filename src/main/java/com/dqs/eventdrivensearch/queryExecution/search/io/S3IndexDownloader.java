@@ -27,6 +27,9 @@ public class S3IndexDownloader {
     @Autowired
     private S3Client s3Client;
 
+    @Autowired
+    private MetricsPublisher metricsPublisher;
+
     public InputStream getInputStream(String filePath,String queryId) {
         InputStream inputStream = null;
         Instant start = Instant.now();
@@ -47,7 +50,7 @@ public class S3IndexDownloader {
             throw new RuntimeException(e);
         }
 
-        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(),queryId);
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(),queryId);
         return inputStream;
     }
 }

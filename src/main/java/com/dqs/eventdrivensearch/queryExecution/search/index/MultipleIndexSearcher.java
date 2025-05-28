@@ -1,8 +1,7 @@
 package com.dqs.eventdrivensearch.queryExecution.search.index;
 
-import com.dqs.eventdrivensearch.queryExecution.search.io.EnvironmentVars;
-import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import com.dqs.eventdrivensearch.queryExecution.search.io.S3SeachResultWriter;
+import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.Query;
@@ -26,19 +25,24 @@ import java.util.logging.Logger;
 public class MultipleIndexSearcher {
 
     private final List<SingleIndexSearcher> singleIndexSearchers;
+    private final MetricsPublisher metricsPublisher;
 
     @Value("${single_index_searcher_count}")
     private int singleIndexSearcherCount;
 
+    @Value("${output_folder_path}")
+    private String outputFolderPath;
+
     private final ExecutorService executorService;
 
-    public MultipleIndexSearcher(ApplicationContext context){
+    public MultipleIndexSearcher(ApplicationContext context, MetricsPublisher metricsPublisher) {
         int totalAvailableCores = Runtime.getRuntime().availableProcessors() - 1;
         executorService = Executors.newWorkStealingPool(totalAvailableCores);
         singleIndexSearchers = new ArrayList<>();
-        for(int idx=0;idx<singleIndexSearcherCount;idx++){
-            singleIndexSearchers.add(idx,context.getBean(SingleIndexSearcher.class));
+        for (int idx = 0; idx < singleIndexSearcherCount; idx++) {
+            singleIndexSearchers.add(idx, context.getBean(SingleIndexSearcher.class));
         }
+        this.metricsPublisher = metricsPublisher;
     }
 
     private static final Logger logger = Logger.getLogger(MultipleIndexSearcher.class.getName());
@@ -46,14 +50,14 @@ public class MultipleIndexSearcher {
     public void search(String searchQueryString, String queryId, String[] filePaths) throws ParseException {
         Instant start = Instant.now();
 
-        final String queryResultLocation = EnvironmentVars.getOutPutFolderPath().endsWith("/")
-                ? EnvironmentVars.getOutPutFolderPath() + queryId
-                : EnvironmentVars.getOutPutFolderPath() + "/" + queryId;
+        final String queryResultLocation = outputFolderPath.endsWith("/")
+                ? outputFolderPath + queryId
+                : outputFolderPath + "/" + queryId;
         List<Future> searchTasks = new ArrayList<>();
 
         try {
             for (int idx = 0; idx < filePaths.length; idx++) {
-                SingleIndexSearcher singleIndexSearcher  = singleIndexSearchers.get(idx);
+                SingleIndexSearcher singleIndexSearcher = singleIndexSearchers.get(idx);
                 String filePath = filePaths[idx];
                 var query = singleIndexSearcher.getQuery(searchQueryString, new StandardAnalyzer());
                 var task = executorService.submit(() -> {
@@ -75,19 +79,19 @@ public class MultipleIndexSearcher {
             System.out.println(e.getMessage() + "\n" + e.getStackTrace());
         } finally {
             executorService.shutdown();
-            MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.INTERNAL_SEARCH_TIME, Duration.between(start, Instant.now()).toMillis(), queryId);
+            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.INTERNAL_SEARCH_TIME, Duration.between(start, Instant.now()).toMillis(), queryId);
         }
     }
 
-    private static void searchOnSingleIndex(String queryResultLocation, String filePath, SingleIndexSearcher singleIndexSearcher, Query query, String queryId) throws IOException, ParseException {
+    private void searchOnSingleIndex(String queryResultLocation, String filePath, SingleIndexSearcher singleIndexSearcher, Query query, String queryId) throws IOException, ParseException {
         Instant start = Instant.now();
 
         S3SeachResultWriter s3SeachResultWriter = singleIndexSearcher.search(filePath, query, queryId);
 
-        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_INDEX_SHARD_LOAD_INTO_LUCENE_DIRECTORY_AND_SEARCH, Duration.between(start, Instant.now()).toMillis(), queryId);
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_INDEX_SHARD_LOAD_INTO_LUCENE_DIRECTORY_AND_SEARCH, Duration.between(start, Instant.now()).toMillis(), queryId);
 
         start = Instant.now();
         s3SeachResultWriter.write(queryResultLocation, filePath);
-        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.WRITE_RESULT_TO_S3_FOR_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.WRITE_RESULT_TO_S3_FOR_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
     }
 }

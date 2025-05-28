@@ -35,6 +35,9 @@ class SingleIndexSearcher {
     @Autowired
     private S3IndexDownloader s3IndexDownloader;
 
+    @Autowired
+    private MetricsPublisher metricsPublisher;
+
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
     S3SeachResultWriter search(String zipFilePath, Query query, String queryId) throws IOException {
@@ -50,7 +53,7 @@ class SingleIndexSearcher {
         org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
 
         S3SeachResultWriter s3SeachResultWriter = readResults(searcher, query);
-        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
 
         deleteTempDirectory(targetTempDirectory.toFile());
 
@@ -99,7 +102,7 @@ class SingleIndexSearcher {
         } finally {
             inputStream.close();
         }
-        MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.UNZIP_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.UNZIP_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
     }
 
     private static S3SeachResultWriter readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {

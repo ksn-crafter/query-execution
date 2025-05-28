@@ -18,8 +18,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junitpioneer.jupiter.SetEnvironmentVariable;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
@@ -97,7 +95,7 @@ class SubQueryGeneratedConsumerIntegrationTests {
     }
 
     @Test
-    @SetEnvironmentVariable(key="OUTPUT_FOLDER_PATH",value="s3://test-bucket/")
+        //@SetEnvironmentVariable(key="OUTPUT_FOLDER_PATH",value="s3://test-bucket/")
     void updatesQueryDescriptionAndSavesSubQuery() {
         queryDescriptionRepository.save(new QueryDescription("query-510", "Deutsche", "Historical", 2001, 2007, QueryStatus.Acknowledged, LocalDateTime.now()));
         String[] indexPaths = {"path-1", "path-2"};
