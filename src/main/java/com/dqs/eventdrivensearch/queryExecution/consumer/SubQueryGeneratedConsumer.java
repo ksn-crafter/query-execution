@@ -23,8 +23,8 @@ public class SubQueryGeneratedConsumer {
     }
 
     public void consume(SubQueryGenerated subQueryGenerated) {
-        queryDescriptionService.updateQueryDescriptionAndSaveSubQuery(new SubQuery(subQueryGenerated.queryId(), subQueryGenerated.subQueryId(), subQueryGenerated.indexPaths()));
         QueryDescription queryDescription = queryDescriptionService.findQueryDescriptionByQueryId(subQueryGenerated.queryId());
+        queryDescriptionService.updateQueryDescriptionAndSaveSubQuery(queryDescription,new SubQuery(subQueryGenerated.queryId(), subQueryGenerated.subQueryId(), subQueryGenerated.indexPaths()));
         try {
             multipleIndexSearcher.search(queryDescription.term(),subQueryGenerated.queryId() ,subQueryGenerated.indexPaths());
         } catch (ParseException e) {
