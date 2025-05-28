@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.SetEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +32,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @SpringBootTest
 @Testcontainers
 public class MultipleIndexSearcherIntegrationTests {
+    @Autowired
+    private MultipleIndexSearcher searcher;
 
     @Container
     private static final LocalStackContainer localStack =
@@ -45,7 +48,7 @@ public class MultipleIndexSearcherIntegrationTests {
     @TestConfiguration
     static class S3TestConfig{
         @Bean
-        @Scope(value="prototype")
+        @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
         @Primary
         public S3Client s3Client(){
             return S3Client.builder()
@@ -76,7 +79,6 @@ public class MultipleIndexSearcherIntegrationTests {
         //which is set via SetEnvironmentVariable annotation on the tests
         final String s3OutputPath = localStack.getEndpointOverride(LocalStackContainer.Service.S3) + "/dqs-poc-data.s3.us-east-1.amazonaws.com/results";
 
-        MultipleIndexSearcher searcher = new MultipleIndexSearcher();
         String[] indexPaths = {s3ZipFilePath};
         String queryId = "query-1";
         searcher.search("Historical",queryId,indexPaths);

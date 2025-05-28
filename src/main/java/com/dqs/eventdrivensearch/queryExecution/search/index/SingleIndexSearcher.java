@@ -1,9 +1,8 @@
 package com.dqs.eventdrivensearch.queryExecution.search.index;
 
-
-import com.dqs.eventdrivensearch.queryExecution.search.io.FileStream;
+import com.dqs.eventdrivensearch.queryExecution.search.io.S3IndexDownloader;
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
-import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
+import com.dqs.eventdrivensearch.queryExecution.search.io.S3SeachResultWriter;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
@@ -13,6 +12,9 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
@@ -27,10 +29,15 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 @Component
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 class SingleIndexSearcher {
+
+    @Autowired
+    private S3IndexDownloader s3IndexDownloader;
+
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
-    SearchResult search(String zipFilePath, Query query, String queryId) throws IOException {
+    S3SeachResultWriter search(String zipFilePath, Query query, String queryId) throws IOException {
         Path targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
         Directory directory = null;
 
@@ -42,12 +49,12 @@ class SingleIndexSearcher {
         DirectoryReader reader = DirectoryReader.open(directory);
         org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
 
-        SearchResult searchResult = readResults(searcher, query);
+        S3SeachResultWriter s3SeachResultWriter = readResults(searcher, query);
         MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
 
         deleteTempDirectory(targetTempDirectory.toFile());
 
-        return searchResult;
+        return s3SeachResultWriter;
     }
 
     private void deleteTempDirectory(File directory) {
@@ -66,7 +73,7 @@ class SingleIndexSearcher {
             Files.createDirectories(outputDir);
         }
 
-        InputStream inputStream = FileStream.getInputStream(zipFilePath, queryId);
+        InputStream inputStream = s3IndexDownloader.getInputStream(zipFilePath, queryId);
         Instant start = Instant.now();
 
         final int OPTIMAL_STREAM_BUFFER_SIZE = 1048576;
@@ -95,7 +102,7 @@ class SingleIndexSearcher {
         MetricsPublisher.putMetricData(MetricsPublisher.MetricNames.UNZIP_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
     }
 
-    private static SearchResult readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {
+    private static S3SeachResultWriter readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {
 
         final int optimalPageSize = 30000; // Number of results per page
         ScoreDoc lastDoc = null; // Starting point for pagination (null for first page)
@@ -129,7 +136,7 @@ class SingleIndexSearcher {
             }
         }
 
-        return new SearchResult(documentIds, searcher.getIndexReader().numDocs(), totalHits, documentIds.size());
+        return new S3SeachResultWriter(documentIds, searcher.getIndexReader().numDocs(), totalHits, documentIds.size());
     }
 
     Query getQuery(String queryString, StandardAnalyzer analyzer) throws ParseException {

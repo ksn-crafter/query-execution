@@ -16,9 +16,9 @@ public class SubQueryGeneratedConsumer {
     private final MultipleIndexSearcher multipleIndexSearcher;
     private final SubQueryExecutedProducer subQueryExecutedProducer;
 
-    public SubQueryGeneratedConsumer(QueryDescriptionService queryDescriptionService, SubQueryExecutedProducer producer, MultipleIndexSearcher searcher) {
+    public SubQueryGeneratedConsumer(QueryDescriptionService queryDescriptionService, SubQueryExecutedProducer producer, MultipleIndexSearcher multipleIndexSearcher) {
         this.queryDescriptionService = queryDescriptionService;
-        multipleIndexSearcher = searcher;
+        this.multipleIndexSearcher = multipleIndexSearcher;
         this.subQueryExecutedProducer = producer;
     }
 

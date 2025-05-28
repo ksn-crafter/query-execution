@@ -10,3 +10,4 @@ spring:
             sub_query_collection_name: "${subQueryCollection:sub_queries}}"
 sub_query_generated_topic: incoming_sub_queries_${tenant:default}
 sub_query_generated_event_consumer_group: incoming_sub_queries_group_${tenant:default}
+single_index_searcher_count: ${index_files_count:64}
