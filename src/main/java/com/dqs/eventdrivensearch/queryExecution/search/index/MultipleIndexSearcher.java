@@ -1,6 +1,6 @@
 package com.dqs.eventdrivensearch.queryExecution.search.index;
 
-import com.dqs.eventdrivensearch.queryExecution.search.io.S3SeachResultWriter;
+import com.dqs.eventdrivensearch.queryExecution.search.io.S3SearchResultWriter;
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -91,12 +91,12 @@ public class MultipleIndexSearcher {
     private void searchOnSingleIndex(String queryResultLocation, String filePath, SingleIndexSearcher singleIndexSearcher, Query query, String queryId) throws IOException, ParseException {
         Instant start = Instant.now();
 
-        S3SeachResultWriter s3SeachResultWriter = singleIndexSearcher.search(filePath, query, queryId);
+        S3SearchResultWriter s3SearchResultWriter = singleIndexSearcher.search(filePath, query, queryId);
 
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_INDEX_SHARD_LOAD_INTO_LUCENE_DIRECTORY_AND_SEARCH, Duration.between(start, Instant.now()).toMillis(), queryId);
 
         start = Instant.now();
-        s3SeachResultWriter.write(queryResultLocation, filePath);
+        s3SearchResultWriter.write(queryResultLocation, filePath);
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.WRITE_RESULT_TO_S3_FOR_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
     }
 }
