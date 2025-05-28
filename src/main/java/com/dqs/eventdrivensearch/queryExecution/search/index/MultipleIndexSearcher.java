@@ -25,24 +25,29 @@ import java.util.logging.Logger;
 public class MultipleIndexSearcher {
 
     private final List<SingleIndexSearcher> singleIndexSearchers;
+
     private final MetricsPublisher metricsPublisher;
 
-    @Value("${single_index_searcher_count}")
-    private int singleIndexSearcherCount;
-
-    @Value("${output_folder_path}")
-    private String outputFolderPath;
+    private final String outputFolderPath;
 
     private final ExecutorService executorService;
 
-    public MultipleIndexSearcher(ApplicationContext context, MetricsPublisher metricsPublisher) {
+    public MultipleIndexSearcher(ApplicationContext context,
+                                 MetricsPublisher metricsPublisher,
+                                 @Value("${single_index_searcher_count}")
+                                 int singleIndexSearcherCount,
+                                 @Value("${output_folder_path}")
+                                 String outputFolderPath
+    ) {
         int totalAvailableCores = Runtime.getRuntime().availableProcessors() - 1;
         executorService = Executors.newWorkStealingPool(totalAvailableCores);
         singleIndexSearchers = new ArrayList<>();
+
         for (int idx = 0; idx < singleIndexSearcherCount; idx++) {
-            singleIndexSearchers.add(idx, context.getBean(SingleIndexSearcher.class));
+            singleIndexSearchers.add(context.getBean(SingleIndexSearcher.class));
         }
         this.metricsPublisher = metricsPublisher;
+        this.outputFolderPath = outputFolderPath;
     }
 
     private static final Logger logger = Logger.getLogger(MultipleIndexSearcher.class.getName());

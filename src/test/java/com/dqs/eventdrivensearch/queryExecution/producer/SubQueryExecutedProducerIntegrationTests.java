@@ -10,13 +10,20 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.test.context.ActiveProfiles;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,6 +44,18 @@ class SubQueryExecutedProducerIntegrationTests {
     private SubQueryExecutedProducer publisher;
 
     private Consumer<String, SubQueryExecuted> consumer;
+
+    @TestConfiguration
+    static class S3TestConfig {
+        @Bean
+        @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+        @Primary
+        public S3Client s3Client() {
+            return S3Client.builder()
+                    .region(Region.US_EAST_1)
+                    .build();
+        }
+    }
 
     @BeforeAll
     void setupConsumer() {
