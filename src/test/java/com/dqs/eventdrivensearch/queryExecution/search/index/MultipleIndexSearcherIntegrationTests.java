@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -44,6 +45,7 @@ public class MultipleIndexSearcherIntegrationTests {
     @TestConfiguration
     static class S3TestConfig{
         @Bean
+        @Scope(value="prototype")
         @Primary
         public S3Client s3Client(){
             return S3Client.builder()

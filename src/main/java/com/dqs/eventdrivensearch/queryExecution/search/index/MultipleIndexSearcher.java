@@ -7,6 +7,7 @@ import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.Query;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -19,6 +20,8 @@ import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+
+@Component
 public class MultipleIndexSearcher {
 
     private static final Logger logger = Logger.getLogger(MultipleIndexSearcher.class.getName());
