@@ -67,7 +67,7 @@ public class MultipleIndexSearcherIntegrationTests {
         String key = s3Uri.getPath().substring(1);
 
         s3Client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
-        PutObjectResponse response = s3Client.putObject(PutObjectRequest.builder().bucket(bucketName).key(key).build(),
+        s3Client.putObject(PutObjectRequest.builder().bucket(bucketName).key(key).build(),
                 RequestBody.fromFile(sampleZip));
     }
 
