@@ -1,7 +1,8 @@
 package com.dqs.eventdrivensearch.queryExecution.search.metrics;
 
 
-import com.dqs.eventdrivensearch.queryExecution.search.io.EnvironmentVars;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
@@ -16,6 +17,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+@Component
 public class MetricsPublisher {
     public enum MetricNames {
         INTERNAL_SEARCH_TIME, DOWNLOAD_INDEX_SHARD_LOAD_INTO_LUCENE_DIRECTORY_AND_SEARCH, WRITE_RESULT_TO_S3_FOR_SINGLE_INDEX_SHARD, DOWNLOAD_SINGLE_INDEX_SHARD, UNZIP_SINGLE_INDEX_SHARD, SEARCH_SINGLE_INDEX_SHARD
@@ -23,11 +25,14 @@ public class MetricsPublisher {
 
     private static final Logger logger = Logger.getLogger(MetricsPublisher.class.getName());
 
-    private static CloudWatchClient cloudWatch = CloudWatchClient.builder().region(Region.US_EAST_1).build();
+    private static final CloudWatchClient cloudWatch = CloudWatchClient.builder().region(Region.US_EAST_1).build();
 
-    private static ConcurrentLinkedQueue<MetricDatum> metrics = new ConcurrentLinkedQueue<>();
+    private static final ConcurrentLinkedQueue<MetricDatum> metrics = new ConcurrentLinkedQueue<>();
 
-    public static void putMetricData(MetricNames metricName, long value,String queryId) {
+    @Value("${cloudwatch_namespace}")
+    private String cloudwatchNamespace;
+
+    public void putMetricData(MetricNames metricName, long value,String queryId) {
         try {
             List<Dimension> dimensions = new ArrayList<>();
 
@@ -43,24 +48,23 @@ public class MetricsPublisher {
         }
     }
 
-    public static void publishToCloudWatch() {
+    public void publishToCloudWatch() {
         List<MetricDatum> tempMetrics = new ArrayList<>();
         for (MetricDatum metric : metrics) {
             tempMetrics.add(metric);
 
             if (tempMetrics.size() % 100 == 0) {
-                PutMetricDataRequest request = PutMetricDataRequest.builder().namespace(EnvironmentVars.getCloudwachNamespace()).metricData(tempMetrics).build();
+                PutMetricDataRequest request = PutMetricDataRequest.builder().namespace(cloudwatchNamespace).metricData(tempMetrics).build();
                 cloudWatch.putMetricData(request);
                 tempMetrics.clear();
             }
         }
 
         if (!tempMetrics.isEmpty()) {
-            PutMetricDataRequest request = PutMetricDataRequest.builder().namespace(EnvironmentVars.getCloudwachNamespace()).metricData(tempMetrics).build();
+            PutMetricDataRequest request = PutMetricDataRequest.builder().namespace(cloudwatchNamespace).metricData(tempMetrics).build();
             cloudWatch.putMetricData(request);
             tempMetrics.clear();
         }
-
 
         metrics.clear();
     }

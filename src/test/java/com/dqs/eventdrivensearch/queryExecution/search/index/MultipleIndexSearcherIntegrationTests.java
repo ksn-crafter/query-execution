@@ -11,6 +11,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Scope;
+import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -31,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest
 @Testcontainers
+@ActiveProfiles("test")
 public class MultipleIndexSearcherIntegrationTests {
     @Autowired
     private MultipleIndexSearcher searcher;
@@ -46,7 +48,7 @@ public class MultipleIndexSearcherIntegrationTests {
     private final String s3ZipFilePath = "https://test-bucket/128MB-chunks/part-00000-0001a714-1dc6-443f-98f5-1a27c467863b-c000.json.gz";
 
     @TestConfiguration
-    static class S3TestConfig{
+    static class S3TestConfig {
         @Bean
         @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
         @Primary
@@ -72,7 +74,7 @@ public class MultipleIndexSearcherIntegrationTests {
     }
 
     @Test
-    @SetEnvironmentVariable(key="OUTPUT_FOLDER_PATH",value="https://test-bucket.s3.us-east-1.amazonaws.com/result")
+    //@SetEnvironmentVariable(key="OUTPUT_FOLDER_PATH",value="https://test-bucket.s3.us-east-1.amazonaws.com/result")
     public void shouldSearchOnIndexAndWriteResultToS3() throws ParseException {
         //note: ensure that the s3OutputPath is same as the OUTPUT_FOLDER_PATH environment variable
         //which is set via SetEnvironmentVariable annotation on the tests
