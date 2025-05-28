@@ -6,9 +6,8 @@ spring:
     data:
         mongodb:
             uri: "mongodb://localhost:3000/db"
-            sub_query_collection_name: "${subQueryCollection:sub_queries}}"
-sub_query_generated_topic: incoming_sub_queries_${tenant:default}
-sub_query_generated_event_consumer_group: incoming_sub_queries_group_${tenant:default}
+            sub_query_collection_name: "${subQueryCollection:sub_queries}"
 single_index_searcher_count: ${INDEX_FILES_COUNT:64}
 cloudwatch_namespace: ${CLOUDWATCH_NAMESPACE:DQS}
 output_folder_path: ${OUTPUT_FOLDER_PATH:https://test-bucket.s3.us-east-1.amazonaws.com/result}
+tenant_ids: ${tenants:jpmc}
