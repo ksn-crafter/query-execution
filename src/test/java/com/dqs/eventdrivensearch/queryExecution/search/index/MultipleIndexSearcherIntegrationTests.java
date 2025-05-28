@@ -3,7 +3,6 @@ package com.dqs.eventdrivensearch.queryExecution.search.index;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junitpioneer.jupiter.SetEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -29,6 +28,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @Testcontainers
@@ -86,13 +86,15 @@ public class MultipleIndexSearcherIntegrationTests {
 
         URI s3Uri = URI.create(s3OutputPath + "/" + queryId);
         String bucketName = s3Uri.getHost().split("\\.")[0];
-        String key = s3Uri.getPath().substring(1);
+        String prefix = s3Uri.getPath().substring(1);
 
-        HeadObjectResponse headResponse = s3Client.headObject(HeadObjectRequest.builder()
+        ListObjectsV2Response listResp = s3Client.listObjectsV2(ListObjectsV2Request.builder()
                 .bucket(bucketName)
-                .key(key)
+                .prefix(prefix)
+                .maxKeys(1) // Only need to check presence
                 .build());
 
-        assertNotNull(headResponse, "Search results object should exist on S3!");
+        boolean fileExists = !listResp.contents().isEmpty();
+        assertTrue(fileExists, "Expected at least one search result file in S3!");
     }
 }

@@ -114,7 +114,6 @@ void setup() {
 }
 
 @Test
-    //@SetEnvironmentVariable(key="OUTPUT_FOLDER_PATH",value="s3://test-bucket/")
 void updatesQueryDescriptionAndSavesSubQuery() {
     queryDescriptionRepository.save(new QueryDescription("query-510", "Deutsche", "Historical", 2001, 2007, QueryStatus.Acknowledged, LocalDateTime.now()));
     String[] indexPaths = {"path-1", "path-2"};
