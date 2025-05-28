@@ -69,7 +69,6 @@ public class MultipleIndexSearcherIntegrationTests {
         s3Client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
         PutObjectResponse response = s3Client.putObject(PutObjectRequest.builder().bucket(bucketName).key(key).build(),
                 RequestBody.fromFile(sampleZip));
-        System.out.println(response.sdkHttpResponse().isSuccessful());
     }
 
     @Test
@@ -77,7 +76,7 @@ public class MultipleIndexSearcherIntegrationTests {
     public void shouldSearchOnIndexAndWriteResultToS3() throws ParseException {
         //note: ensure that the s3OutputPath is same as the OUTPUT_FOLDER_PATH environment variable
         //which is set via SetEnvironmentVariable annotation on the tests
-        final String s3OutputPath = localStack.getEndpointOverride(LocalStackContainer.Service.S3) + "/dqs-poc-data.s3.us-east-1.amazonaws.com/results";
+        final String s3OutputPath = "https://test-bucket.s3.us-east-1.amazonaws.com/result";
 
         String[] indexPaths = {s3ZipFilePath};
         String queryId = "query-1";

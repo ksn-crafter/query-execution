@@ -28,7 +28,7 @@ public class MultipleIndexSearcher {
     private final List<SingleIndexSearcher> singleIndexSearchers;
 
     @Value("${single_index_searcher_count}")
-    int singleIndexSearcherCount;
+    private int singleIndexSearcherCount;
 
     private final ExecutorService executorService;
 
