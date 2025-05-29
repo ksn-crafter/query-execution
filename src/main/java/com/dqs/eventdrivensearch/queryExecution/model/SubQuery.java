@@ -12,20 +12,22 @@ public class SubQuery {
     private String id;
     private String queryId;
     private String subQueryId;
-    private String[] indexPaths;
+    private String[] filePaths;
     private SubQueryStatus status;
     private LocalDateTime creationTime;
     private LocalDateTime completionTime;
+    private int totalSubQueries;
 
     public SubQuery() {
     }
 
-    public SubQuery(String queryId, String subQueryId, String[] indexPaths) {
+    public SubQuery(String queryId, String subQueryId, String[] filePaths, int totalSubQueries) {
         this.queryId = queryId;
         this.subQueryId = subQueryId;
-        this.indexPaths = indexPaths;
+        this.filePaths = filePaths;
         this.status = SubQueryStatus.CREATED;
         this.creationTime = LocalDateTime.now();
+        this.totalSubQueries = totalSubQueries;
     }
 
     public String queryId() {
@@ -37,7 +39,7 @@ public class SubQuery {
     }
 
     public String[] indexPaths() {
-        return indexPaths;
+        return filePaths;
     }
 
     public SubQueryStatus status() {
@@ -56,19 +58,7 @@ public class SubQuery {
         this.queryId = queryId;
     }
 
-    public void setIndexPaths(String[] indexPaths) {
-        this.indexPaths = indexPaths;
-    }
-
-    public void setSubQueryId(String subQueryId) {
-        this.subQueryId = subQueryId;
-    }
-
-    public void setCreationTime(LocalDateTime creationTime) {
-        this.creationTime = creationTime;
-    }
-
-    public void setCompletionTime(LocalDateTime completionTime) {
-        this.completionTime = completionTime;
+    public int totalSubQueries(){
+        return totalSubQueries;
     }
 }

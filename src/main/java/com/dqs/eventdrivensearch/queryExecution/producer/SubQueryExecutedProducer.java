@@ -14,14 +14,14 @@ public class SubQueryExecutedProducer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void produce(SubQueryExecuted subQueryExecuted,String tenantId){
-        kafkaTemplate.send(topicNameFor(tenantId),
+    public void produce(SubQueryExecuted subQueryExecuted,String tenant){
+        kafkaTemplate.send(topicNameFor(tenant),
                 subQueryExecuted.subQueryId(),
                 subQueryExecuted);
     }
 
-    private String topicNameFor(String tenantId) {
-        return topicPrefix + tenantId;
+    private String topicNameFor(String tenant) {
+        return topicPrefix + tenant.toLowerCase();
     }
 
 }

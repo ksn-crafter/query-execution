@@ -25,6 +25,7 @@ import org.springframework.test.context.ActiveProfiles;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -79,7 +80,7 @@ class SubQueryExecutedProducerIntegrationTests {
     @Test
     void publishSubQueryExecuted() {
         UUID id = UUID.randomUUID();
-        SubQueryExecuted event = new SubQueryExecuted(id.toString(), "query-1",3);
+        SubQueryExecuted event = new SubQueryExecuted(id.toString(), "query-1",3, LocalDateTime.now());
 
         publisher.produce(event,"jpmc");
 
@@ -91,5 +92,6 @@ class SubQueryExecutedProducerIntegrationTests {
         assertEquals(event.subQueryId(), subQueryExecuted.subQueryId());
         assertEquals(event.queryId(), subQueryExecuted.queryId());
         assertEquals(event.totalSubQueries(), subQueryExecuted.totalSubQueries());
+        assertEquals(event.completionTime(), subQueryExecuted.completionTime());
     }
 }

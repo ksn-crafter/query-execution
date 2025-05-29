@@ -10,6 +10,8 @@ import com.dqs.eventdrivensearch.queryExecution.services.QueryDescriptionService
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+
 @Component
 public class SubQueryGeneratedConsumer {
     private final QueryDescriptionService queryDescriptionService;
@@ -24,12 +26,12 @@ public class SubQueryGeneratedConsumer {
 
     public void consume(SubQueryGenerated subQueryGenerated) {
         QueryDescription queryDescription = queryDescriptionService.findQueryDescriptionByQueryId(subQueryGenerated.queryId());
-        queryDescriptionService.updateQueryDescriptionAndSaveSubQuery(queryDescription,new SubQuery(subQueryGenerated.queryId(), subQueryGenerated.subQueryId(), subQueryGenerated.indexPaths()));
+        queryDescriptionService.updateQueryDescriptionAndSaveSubQuery(queryDescription,new SubQuery(subQueryGenerated.queryId(), subQueryGenerated.subQueryId(), subQueryGenerated.indexPaths(),subQueryGenerated.totalSubQueries()));
         try {
             multipleIndexSearcher.search(queryDescription.term(),subQueryGenerated.queryId() ,subQueryGenerated.indexPaths());
         } catch (ParseException e) {
             System.out.println(e.getMessage() + "\n" + e.getStackTrace());
         }
-        subQueryExecutedProducer.produce(new SubQueryExecuted(subQueryGenerated.subQueryId(), subQueryGenerated.queryId(),subQueryGenerated.totalSubQueries()),queryDescription.tenantId());
+        subQueryExecutedProducer.produce(new SubQueryExecuted(subQueryGenerated.subQueryId(), subQueryGenerated.queryId(),subQueryGenerated.totalSubQueries(), LocalDateTime.now()),queryDescription.tenantId());
     }
 }

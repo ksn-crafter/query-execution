@@ -128,7 +128,7 @@ void updatesQueryDescriptionAndSavesSubQuery() {
 
     Optional<SubQuery> subQuery = subQueryRepository.findBySubQueryId("subquery-1");
     assertThat(subQuery.get().subQueryId()).isEqualTo("subquery-1");
-
+    assertThat(subQuery.get().totalSubQueries()).isEqualTo(2);
     QueryDescription queryDescription = queryDescriptionRepository.findByQueryId("query-510").get();
     assertThat(queryDescription.status()).isEqualTo(QueryStatus.InProgress);
 
