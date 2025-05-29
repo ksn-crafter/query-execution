@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.dqs</groupId>
-    <artifactId>queryStatusTracking</artifactId>
+    <artifactId>query-execution</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>DQS API&apos;s</name>
     <description>Demo project for Spring Boot</description>

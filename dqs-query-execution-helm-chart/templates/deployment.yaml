@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dqs-query-execution-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: dqs-query-execution
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dqs-query-execution
+  template:
+    metadata:
+      labels:
+        app: dqs-query-execution
+    spec:
+      containers:
+      - name: dqs-query-execution-container
+        image: {{ .Values.imageUri }}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+          - name: API_ALLOWED_ORIGINS
+            value: {{.Values.API_ALLOWED_ORIGINS}}
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: {{.Values.KAFKA_BOOTSTRAP_SERVERS}}
+          - name: MONGO_DB_URL
+            value: {{.Values.MONGO_DB_URL}}
+          - name: INDEX_FILES_COUNT
+            value: {{.Values.INDEX_FILES_COUNT}}
+          - name: CLOUDWATCH_NAMESPACE
+            value: {{.Values.CLOUDWATCH_NAMESPACE}}
+          - name: OUTPUT_FOLDER_PATH
+            value: {{.Values.OUTPUT_FOLDER_PATH}}
+          - name: TENANTS
+            value: {{.Values.TENANTS}}
