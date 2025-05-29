@@ -91,6 +91,7 @@ public class MultipleIndexSearcher {
         } finally {
             executorService.shutdown();
             metricsPublisher.putMetricData(MetricsPublisher.MetricNames.INTERNAL_SEARCH_TIME, Duration.between(start, Instant.now()).toMillis(), queryId);
+            metricsPublisher.publishToCloudWatch();
         }
     }
 
