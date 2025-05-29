@@ -4,11 +4,11 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 
-@Document(collection = "queryDescription")
+@Document(collection = "query_descriptions")
 public class QueryDescription {
     @Id
     private String queryId;
-    private String tenantId;
+    private String tenant;
     private String term;
     private int yearStart;
     private int yearEnd;
@@ -18,9 +18,9 @@ public class QueryDescription {
 
     public QueryDescription() {}
 
-    public QueryDescription(String queryId, String tenantId, String term, int yearStart, int yearEnd, QueryStatus status, LocalDateTime creationTime) {
+    public QueryDescription(String queryId, String tenant, String term, int yearStart, int yearEnd, QueryStatus status, LocalDateTime creationTime) {
         this.queryId = queryId;
-        this.tenantId = tenantId;
+        this.tenant = tenant;
         this.term = term;
         this.yearStart = yearStart;
         this.yearEnd = yearEnd;
@@ -33,7 +33,7 @@ public class QueryDescription {
     }
 
     public String tenantId() {
-        return tenantId;
+        return tenant;
     }
 
     public String term() {
