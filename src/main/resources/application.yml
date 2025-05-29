@@ -9,4 +9,4 @@ spring:
 single_index_searcher_count: ${INDEX_FILES_COUNT:64}
 cloudwatch_namespace: ${CLOUDWATCH_NAMESPACE:DQS}
 output_folder_path: ${OUTPUT_FOLDER_PATH:https://test-bucket.s3.us-east-1.amazonaws.com/result}
-tenant_ids: ${TENANT_IDS:jpmc}
+tenants: ${TENANTS}
