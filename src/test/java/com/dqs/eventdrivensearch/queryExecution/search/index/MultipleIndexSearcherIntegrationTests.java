@@ -80,7 +80,8 @@ public class MultipleIndexSearcherIntegrationTests {
 
         String[] indexPaths = {s3ZipFilePath};
         String queryId = "query-1";
-        searcher.search("Historical",queryId,indexPaths);
+        String subQueryId = "sub-query-1";
+        searcher.search("Historical",queryId,indexPaths,subQueryId);
 
         URI s3Uri = URI.create(s3OutputPath + "/" + queryId);
         String bucketName = s3Uri.getHost().split("\\.")[0];

@@ -57,7 +57,7 @@ public class MultipleIndexSearcher {
 
     private static final Logger logger = Logger.getLogger(MultipleIndexSearcher.class.getName());
 
-    public void search(String searchQueryString, String queryId, String[] filePaths) throws ParseException {
+    public void search(String searchQueryString, String queryId, String[] filePaths,String subQueryId) throws ParseException {
         Instant start = Instant.now();
 
         final String queryResultLocation = outputFolderPath.endsWith("/")
@@ -75,6 +75,7 @@ public class MultipleIndexSearcher {
                     try {
                         searchOnSingleIndex(queryResultLocation, filePath, singleIndexSearcher, query, queryId,s3SearchResultWriter);
                     } catch (IOException | ParseException e) {
+                        System.out.println(String.format("Search for file %s has failed. The query id is %s and sub query id is %s",filePath,queryId,subQueryId));
                         logger.log(Level.WARNING, e.getMessage() + "\n" + e.getStackTrace() + "\n" + "filePath: " + filePath);
                         throw new RuntimeException(e);
                     }
@@ -88,6 +89,7 @@ public class MultipleIndexSearcher {
 
         } catch (Exception e) {
             System.out.println(e.getMessage() + "\n" + e.getStackTrace());
+            throw e;
         } finally {
             executorService.shutdown();
             metricsPublisher.putMetricData(MetricsPublisher.MetricNames.INTERNAL_SEARCH_TIME, Duration.between(start, Instant.now()).toMillis(), queryId);
