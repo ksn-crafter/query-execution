@@ -1,6 +1,6 @@
 #used for deployment
-namespace: dqs-query-execution-app
-imageUri: ''
+IMAGE_URI: ''
+NUMBER_OF_WORKERS: 1
 
 #used by application
 API_ALLOWED_ORIGINS: ''
