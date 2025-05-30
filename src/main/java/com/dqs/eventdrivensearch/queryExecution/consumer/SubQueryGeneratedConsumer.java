@@ -33,7 +33,9 @@ public class SubQueryGeneratedConsumer {
             multipleIndexSearcher.search(queryDescription.term(),subQueryGenerated.queryId() ,subQueryGenerated.indexPaths());
             System.out.println(String.format("Search for Sub Query with id %s having query id %s for tenant %s is completed",subQueryGenerated.subQueryId(),subQueryGenerated.queryId(),subQueryGenerated.tenant()));
         } catch (ParseException e) {
+            System.out.println(String.format("Search for Sub Query with id %s having query id %s for tenant %s has an error.",subQueryGenerated.subQueryId(),subQueryGenerated.queryId(),subQueryGenerated.tenant()));
             System.out.println(e.getMessage() + "\n" + e.getStackTrace());
+            return;
         }
         subQueryExecutedProducer.produce(new SubQueryExecuted(subQueryGenerated.subQueryId(), subQueryGenerated.queryId(),subQueryGenerated.totalSubQueries(), LocalDateTime.now(), subQueryGenerated.tenant()),queryDescription.tenant());
         System.out.println(String.format("Event for Sub Query with id %s having query id %s for tenant %s is produced",subQueryGenerated.subQueryId(),subQueryGenerated.queryId(),subQueryGenerated.tenant()));
