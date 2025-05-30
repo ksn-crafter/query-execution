@@ -32,6 +32,6 @@ public class SubQueryGeneratedConsumer {
         } catch (ParseException e) {
             System.out.println(e.getMessage() + "\n" + e.getStackTrace());
         }
-        subQueryExecutedProducer.produce(new SubQueryExecuted(subQueryGenerated.subQueryId(), subQueryGenerated.queryId(),subQueryGenerated.totalSubQueries(), LocalDateTime.now(), subQueryGenerated.tenant()),queryDescription.tenantId());
+        subQueryExecutedProducer.produce(new SubQueryExecuted(subQueryGenerated.subQueryId(), subQueryGenerated.queryId(),subQueryGenerated.totalSubQueries(), LocalDateTime.now(), subQueryGenerated.tenant()),queryDescription.tenant());
     }
 }

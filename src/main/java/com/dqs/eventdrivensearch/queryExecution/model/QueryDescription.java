@@ -32,7 +32,7 @@ public class QueryDescription {
         return queryId;
     }
 
-    public String tenantId() {
+    public String tenant() {
         return tenant;
     }
 
