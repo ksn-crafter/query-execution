@@ -17,17 +17,19 @@ public class SubQuery {
     private LocalDateTime creationTime;
     private LocalDateTime completionTime;
     private int totalSubQueries;
+    private String tenant;
 
     public SubQuery() {
     }
 
-    public SubQuery(String queryId, String subQueryId, String[] filePaths, int totalSubQueries) {
+    public SubQuery(String queryId, String subQueryId, String[] filePaths, int totalSubQueries,String tenant) {
         this.queryId = queryId;
         this.subQueryId = subQueryId;
         this.filePaths = filePaths;
         this.status = SubQueryStatus.CREATED;
         this.creationTime = LocalDateTime.now();
         this.totalSubQueries = totalSubQueries;
+        this.tenant = tenant;
     }
 
     public String queryId() {

@@ -80,7 +80,7 @@ class SubQueryExecutedProducerIntegrationTests {
     @Test
     void publishSubQueryExecuted() {
         UUID id = UUID.randomUUID();
-        SubQueryExecuted event = new SubQueryExecuted(id.toString(), "query-1",3, LocalDateTime.now());
+        SubQueryExecuted event = new SubQueryExecuted(id.toString(), "query-1",3, LocalDateTime.now(),"jpmc");
 
         publisher.produce(event,"jpmc");
 
@@ -93,5 +93,6 @@ class SubQueryExecutedProducerIntegrationTests {
         assertEquals(event.queryId(), subQueryExecuted.queryId());
         assertEquals(event.totalSubQueries(), subQueryExecuted.totalSubQueries());
         assertEquals(event.completionTime(), subQueryExecuted.completionTime());
+        assertEquals(event.tenant(), subQueryExecuted.tenant());
     }
 }

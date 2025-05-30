@@ -4,13 +4,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class SubQueryGenerated {
     @JsonProperty
-    String queryId;
+    private String queryId;
     @JsonProperty
-    String subQueryId;
+    private String subQueryId;
     @JsonProperty
-    String[] filePaths;
+    private String[] filePaths;
     @JsonProperty
-    int totalSubQueries;
+    private int totalSubQueries;
+    @JsonProperty
+    private String tenant;
 
     public SubQueryGenerated(){}
 
@@ -35,5 +37,9 @@ public class SubQueryGenerated {
 
     public int totalSubQueries(){
         return totalSubQueries;
+    }
+
+    public String tenant(){
+        return tenant;
     }
 }

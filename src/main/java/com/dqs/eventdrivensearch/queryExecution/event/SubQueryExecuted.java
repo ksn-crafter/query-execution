@@ -17,13 +17,17 @@ public class SubQueryExecuted {
     @JsonProperty
     private LocalDateTime completionTime;
 
+    @JsonProperty
+    private String tenant;
+
     public SubQueryExecuted(){}
 
-    public SubQueryExecuted(String subQueryId,String queryId,int totalSubQueries,LocalDateTime completionTime) {
+    public SubQueryExecuted(String subQueryId,String queryId,int totalSubQueries,LocalDateTime completionTime,String tenant) {
         this.queryId = queryId;
         this.subQueryId = subQueryId;
         this.totalSubQueries = totalSubQueries;
         this.completionTime = completionTime;
+        this.tenant = tenant;
     }
 
     public String queryId(){
@@ -40,5 +44,9 @@ public class SubQueryExecuted {
 
     public LocalDateTime completionTime(){
         return completionTime;
+    }
+
+    public String tenant(){
+        return tenant;
     }
 }

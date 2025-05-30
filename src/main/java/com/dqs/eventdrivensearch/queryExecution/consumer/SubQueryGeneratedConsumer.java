@@ -26,12 +26,12 @@ public class SubQueryGeneratedConsumer {
 
     public void consume(SubQueryGenerated subQueryGenerated) {
         QueryDescription queryDescription = queryDescriptionService.findQueryDescriptionByQueryId(subQueryGenerated.queryId());
-        queryDescriptionService.updateQueryDescriptionAndSaveSubQuery(queryDescription,new SubQuery(subQueryGenerated.queryId(), subQueryGenerated.subQueryId(), subQueryGenerated.indexPaths(),subQueryGenerated.totalSubQueries()));
+        queryDescriptionService.updateQueryDescriptionAndSaveSubQuery(queryDescription,new SubQuery(subQueryGenerated.queryId(), subQueryGenerated.subQueryId(), subQueryGenerated.indexPaths(),subQueryGenerated.totalSubQueries(),subQueryGenerated.tenant()));
         try {
             multipleIndexSearcher.search(queryDescription.term(),subQueryGenerated.queryId() ,subQueryGenerated.indexPaths());
         } catch (ParseException e) {
             System.out.println(e.getMessage() + "\n" + e.getStackTrace());
         }
-        subQueryExecutedProducer.produce(new SubQueryExecuted(subQueryGenerated.subQueryId(), subQueryGenerated.queryId(),subQueryGenerated.totalSubQueries(), LocalDateTime.now()),queryDescription.tenantId());
+        subQueryExecutedProducer.produce(new SubQueryExecuted(subQueryGenerated.subQueryId(), subQueryGenerated.queryId(),subQueryGenerated.totalSubQueries(), LocalDateTime.now(), subQueryGenerated.tenant()),queryDescription.tenantId());
     }
 }
