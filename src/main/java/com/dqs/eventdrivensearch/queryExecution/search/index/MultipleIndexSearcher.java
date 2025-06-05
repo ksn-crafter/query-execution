@@ -31,8 +31,6 @@ public class MultipleIndexSearcher {
 
     private final String outputFolderPath;
 
-    private final ExecutorService executorService;
-
     private final List<S3SearchResultWriter> s3SearchResultWriters;
 
     public MultipleIndexSearcher(ApplicationContext context,
@@ -42,8 +40,7 @@ public class MultipleIndexSearcher {
                                  @Value("${output_folder_path}")
                                  String outputFolderPath
     ) {
-        int totalAvailableCores = Runtime.getRuntime().availableProcessors() - 1;
-        executorService = Executors.newWorkStealingPool(totalAvailableCores);
+
         singleIndexSearchers = new ArrayList<>();
         s3SearchResultWriters = new ArrayList<>();
 
@@ -57,9 +54,11 @@ public class MultipleIndexSearcher {
 
     private static final Logger logger = Logger.getLogger(MultipleIndexSearcher.class.getName());
 
-    public void search(String searchQueryString, String queryId, String[] filePaths,String subQueryId) throws ParseException {
+    public void search(String searchQueryString, String queryId, String[] filePaths, String subQueryId) throws ParseException {
         Instant start = Instant.now();
         List<Future> searchTasks = new ArrayList<>();
+        int totalAvailableCores = Runtime.getRuntime().availableProcessors() - 1;
+        final ExecutorService executorService = Executors.newWorkStealingPool(totalAvailableCores);
 
         try {
             System.out.println("Inside the search method");
@@ -75,9 +74,9 @@ public class MultipleIndexSearcher {
                 var task = executorService.submit(() -> {
                     System.out.println("Inside the submit of executor service");
                     try {
-                        searchOnSingleIndex(queryResultLocation, filePath, singleIndexSearcher, query, queryId,s3SearchResultWriter);
+                        searchOnSingleIndex(queryResultLocation, filePath, singleIndexSearcher, query, queryId, s3SearchResultWriter);
                     } catch (IOException | ParseException e) {
-                        System.out.println(String.format("Search for file %s has failed. The query id is %s and sub query id is %s",filePath,queryId,subQueryId));
+                        System.out.println(String.format("Search for file %s has failed. The query id is %s and sub query id is %s", filePath, queryId, subQueryId));
                         logger.log(Level.WARNING, e.getMessage() + "\n" + e.getStackTrace() + "\n" + "filePath: " + filePath);
                         throw new RuntimeException(e);
                     }
