@@ -62,15 +62,18 @@ public class MultipleIndexSearcher {
         List<Future> searchTasks = new ArrayList<>();
 
         try {
+            System.out.println("Inside the search method");
             final String queryResultLocation = outputFolderPath.endsWith("/")
                     ? outputFolderPath + queryId
                     : outputFolderPath + "/" + queryId;
             for (int idx = 0; idx < filePaths.length; idx++) {
+                System.out.println("Inside the search for loop");
                 SingleIndexSearcher singleIndexSearcher = singleIndexSearchers.get(idx);
                 String filePath = filePaths[idx];
                 S3SearchResultWriter s3SearchResultWriter = s3SearchResultWriters.get(idx);
                 var query = singleIndexSearcher.getQuery(searchQueryString, new StandardAnalyzer());
                 var task = executorService.submit(() -> {
+                    System.out.println("Inside the submit of executor service");
                     try {
                         searchOnSingleIndex(queryResultLocation, filePath, singleIndexSearcher, query, queryId,s3SearchResultWriter);
                     } catch (IOException | ParseException e) {
@@ -99,6 +102,7 @@ public class MultipleIndexSearcher {
 
     private void searchOnSingleIndex(String queryResultLocation, String filePath, SingleIndexSearcher singleIndexSearcher, Query query, String queryId, S3SearchResultWriter s3SearchResultWriter) throws IOException, ParseException {
         Instant start = Instant.now();
+        System.out.println("Inside searchOnSingleIndex");
 
         SearchResult searchResult = singleIndexSearcher.search(filePath, query, queryId);
 

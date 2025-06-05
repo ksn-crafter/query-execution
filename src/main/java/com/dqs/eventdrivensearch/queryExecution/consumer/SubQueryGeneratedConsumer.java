@@ -7,7 +7,6 @@ import com.dqs.eventdrivensearch.queryExecution.model.SubQuery;
 import com.dqs.eventdrivensearch.queryExecution.producer.SubQueryExecutedProducer;
 import com.dqs.eventdrivensearch.queryExecution.search.index.MultipleIndexSearcher;
 import com.dqs.eventdrivensearch.queryExecution.services.QueryDescriptionService;
-import org.apache.lucene.queryparser.classic.ParseException;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
