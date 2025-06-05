@@ -26,6 +26,7 @@ import de.flapdoodle.embed.mongo.distribution.Version;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.io.IOException;
@@ -59,6 +60,15 @@ public class SubQueryServiceIntegrationTests {
         @Primary
         public S3Client s3Client() {
             return S3Client.builder()
+                    .region(Region.US_EAST_1)
+                    .build();
+        }
+
+        @Bean
+        @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+        @Primary
+        public CloudWatchClient cloudWatchClient() {
+            return CloudWatchClient.builder()
                     .region(Region.US_EAST_1)
                     .build();
         }

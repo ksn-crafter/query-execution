@@ -20,9 +20,9 @@ public class QueryDescriptionService {
     }
 
     @Transactional
-    public void updateQueryDescriptionAndSaveSubQuery(QueryDescription queryDescription, SubQuery subQuery) {
+    public boolean updateQueryDescriptionAndSaveSubQuery(QueryDescription queryDescription, SubQuery subQuery) {
         updateQueryDescriptionStatusToInProgress(queryDescription);
-        subQueryService.save(subQuery);
+        return subQueryService.save(subQuery);
     }
 
     @Transactional(propagation = Propagation.REQUIRED)

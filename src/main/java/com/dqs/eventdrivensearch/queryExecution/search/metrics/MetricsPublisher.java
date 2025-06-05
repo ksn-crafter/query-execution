@@ -1,11 +1,11 @@
 package com.dqs.eventdrivensearch.queryExecution.search.metrics;
 
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
 import software.amazon.awssdk.services.cloudwatch.model.MetricDatum;
@@ -28,14 +28,15 @@ public class MetricsPublisher {
 
     private static final Logger logger = Logger.getLogger(MetricsPublisher.class.getName());
 
-    private static final CloudWatchClient cloudWatch = CloudWatchClient.builder().region(Region.US_EAST_1).build();
-
     private static final ConcurrentLinkedQueue<MetricDatum> metrics = new ConcurrentLinkedQueue<>();
 
     @Value("${cloudwatch_namespace}")
     private String cloudwatchNamespace;
 
-    public void putMetricData(MetricNames metricName, long value,String queryId) {
+    @Autowired
+    private CloudWatchClient cloudWatch;
+
+    public void putMetricData(MetricNames metricName, long value, String queryId) {
         try {
             List<Dimension> dimensions = new ArrayList<>();
 
@@ -70,9 +71,5 @@ public class MetricsPublisher {
         }
 
         metrics.clear();
-    }
-
-    public static void close() {
-        cloudWatch.close();
     }
 }
