@@ -19,10 +19,14 @@ public class KafkaConsumerConfiguration {
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
+    @Value("${spring.kafka.consumer.max.poll.interval.ms}")
+    private int maxPollIntervalInMilliSeconds;
+
     @Bean
     public ConsumerFactory<String, SubQueryGenerated> consumerFactory() {
         Map<String, Object> config = new HashMap<>();
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        config.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG,maxPollIntervalInMilliSeconds);
         config.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
 
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);

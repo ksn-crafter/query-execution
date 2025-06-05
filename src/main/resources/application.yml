@@ -9,6 +9,8 @@ spring:
                 sasl.mechanism: AWS_MSK_IAM
                 sasl.jaas.config: software.amazon.msk.auth.iam.IAMLoginModule required;
                 sasl.client.callback.handler.class: software.amazon.msk.auth.iam.IAMClientCallbackHandler
+        consumer:
+            max.poll.interval.ms: 600000
     data:
         mongodb:
             uri: ${MONGO_DB_URL:mongodb://localhost:3000/db}

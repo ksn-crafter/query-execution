@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Service
 public class SubQueryService {
     private SubQueryRepository subQueryRepository;
@@ -16,6 +18,9 @@ public class SubQueryService {
 
     @Transactional(propagation = Propagation.REQUIRED)
     public void save(SubQuery subQuery){
-        subQueryRepository.save(subQuery);
+        boolean isSubQueryExists = subQueryRepository.existsBySubQueryId(subQuery.subQueryId());
+        if(isSubQueryExists == false) {
+            subQueryRepository.save(subQuery);
+        }
     }
 }
