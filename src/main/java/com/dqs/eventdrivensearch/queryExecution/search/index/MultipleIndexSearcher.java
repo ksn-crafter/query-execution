@@ -88,7 +88,7 @@ public class MultipleIndexSearcher {
 
         } catch (Exception e) {
             System.out.println("Issue in search");
-            System.out.println(e.getMessage() + "\n" + e.getStackTrace());
+            System.out.println(e.getMessage() + "\n" + e.getStackTrace().toString());
             throw e;
         } finally {
             executorService.shutdown();
