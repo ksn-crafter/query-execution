@@ -22,11 +22,15 @@ public class KafkaConsumerConfiguration {
     @Value("${spring.kafka.consumer.max.poll.interval.ms}")
     private int maxPollIntervalInMilliSeconds;
 
+    @Value("${spring.kafka.consumer.max.poll.records}")
+    private int maxPollRecords;
+
     @Bean
     public ConsumerFactory<String, SubQueryGenerated> consumerFactory() {
         Map<String, Object> config = new HashMap<>();
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        config.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG,maxPollIntervalInMilliSeconds);
+        config.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollIntervalInMilliSeconds);
+        config.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
         config.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
 
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
