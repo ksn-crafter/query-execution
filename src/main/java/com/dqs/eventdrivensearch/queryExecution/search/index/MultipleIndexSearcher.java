@@ -59,13 +59,12 @@ public class MultipleIndexSearcher {
 
     public void search(String searchQueryString, String queryId, String[] filePaths,String subQueryId) throws ParseException {
         Instant start = Instant.now();
-
-        final String queryResultLocation = outputFolderPath.endsWith("/")
-                ? outputFolderPath + queryId
-                : outputFolderPath + "/" + queryId;
         List<Future> searchTasks = new ArrayList<>();
 
         try {
+            final String queryResultLocation = outputFolderPath.endsWith("/")
+                    ? outputFolderPath + queryId
+                    : outputFolderPath + "/" + queryId;
             for (int idx = 0; idx < filePaths.length; idx++) {
                 SingleIndexSearcher singleIndexSearcher = singleIndexSearchers.get(idx);
                 String filePath = filePaths[idx];
@@ -88,6 +87,7 @@ public class MultipleIndexSearcher {
             }
 
         } catch (Exception e) {
+            System.out.println("Issue in search");
             System.out.println(e.getMessage() + "\n" + e.getStackTrace());
             throw e;
         } finally {
