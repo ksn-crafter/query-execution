@@ -61,18 +61,15 @@ public class MultipleIndexSearcher {
         final ExecutorService executorService = Executors.newWorkStealingPool(totalAvailableCores);
 
         try {
-            System.out.println("Inside the search method");
             final String queryResultLocation = outputFolderPath.endsWith("/")
                     ? outputFolderPath + queryId
                     : outputFolderPath + "/" + queryId;
             for (int idx = 0; idx < filePaths.length; idx++) {
-                System.out.println("Inside the search for loop");
                 SingleIndexSearcher singleIndexSearcher = singleIndexSearchers.get(idx);
                 String filePath = filePaths[idx];
                 S3SearchResultWriter s3SearchResultWriter = s3SearchResultWriters.get(idx);
                 var query = singleIndexSearcher.getQuery(searchQueryString, new StandardAnalyzer());
                 var task = executorService.submit(() -> {
-                    System.out.println("Inside the submit of executor service");
                     try {
                         searchOnSingleIndex(queryResultLocation, filePath, singleIndexSearcher, query, queryId, s3SearchResultWriter);
                     } catch (IOException | ParseException e) {
@@ -89,7 +86,6 @@ public class MultipleIndexSearcher {
             }
 
         } catch (Exception e) {
-            System.out.println("Issue in search");
             System.out.println(e.getMessage() + "\n" + e.getStackTrace().toString());
             throw e;
         } finally {
@@ -101,8 +97,7 @@ public class MultipleIndexSearcher {
 
     private void searchOnSingleIndex(String queryResultLocation, String filePath, SingleIndexSearcher singleIndexSearcher, Query query, String queryId, S3SearchResultWriter s3SearchResultWriter) throws IOException, ParseException {
         Instant start = Instant.now();
-        System.out.println("Inside searchOnSingleIndex");
-
+        
         SearchResult searchResult = singleIndexSearcher.search(filePath, query, queryId);
 
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_INDEX_SHARD_LOAD_INTO_LUCENE_DIRECTORY_AND_SEARCH, Duration.between(start, Instant.now()).toMillis(), queryId);
