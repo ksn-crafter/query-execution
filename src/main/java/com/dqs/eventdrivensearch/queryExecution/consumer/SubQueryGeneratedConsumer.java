@@ -24,7 +24,7 @@ public class SubQueryGeneratedConsumer {
     }
 
     /**
-     * Spring will create a method call poll (or equivalent) around consume -- pseudocode
+     * Spring will create a method called poll (or equivalent) around consume -- pseudocode
      * void poll() {
      *      while(true) {
      *          List<SubQueryGenerated> records = poll(); -> polling kafka
