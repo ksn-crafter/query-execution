@@ -97,7 +97,7 @@ public class MultipleIndexSearcher {
 
     private void searchOnSingleIndex(String queryResultLocation, String filePath, SingleIndexSearcher singleIndexSearcher, Query query, String queryId, S3SearchResultWriter s3SearchResultWriter) throws IOException, ParseException {
         Instant start = Instant.now();
-        
+
         SearchResult searchResult = singleIndexSearcher.search(filePath, query, queryId);
 
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_INDEX_SHARD_LOAD_INTO_LUCENE_DIRECTORY_AND_SEARCH, Duration.between(start, Instant.now()).toMillis(), queryId);

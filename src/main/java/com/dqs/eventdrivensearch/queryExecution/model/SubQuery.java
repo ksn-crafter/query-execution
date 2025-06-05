@@ -16,19 +16,19 @@ public class SubQuery {
     private SubQueryStatus status;
     private LocalDateTime creationTime;
     private LocalDateTime completionTime;
-    private int totalSubQueries;
+    private int totalSubqueries;
     private String tenant;
 
     public SubQuery() {
     }
 
-    public SubQuery(String queryId, String subQueryId, String[] filePaths, int totalSubQueries,String tenant) {
+    public SubQuery(String queryId, String subQueryId, String[] filePaths, int totalSubqueries, String tenant) {
         this.queryId = queryId;
         this.subQueryId = subQueryId;
         this.filePaths = filePaths;
         this.status = SubQueryStatus.CREATED;
         this.creationTime = LocalDateTime.now();
-        this.totalSubQueries = totalSubQueries;
+        this.totalSubqueries = totalSubqueries;
         this.tenant = tenant;
     }
 
@@ -61,6 +61,6 @@ public class SubQuery {
     }
 
     public int totalSubQueries(){
-        return totalSubQueries;
+        return totalSubqueries;
     }
 }
