@@ -3,12 +3,6 @@ spring:
         name:queryExecution
     kafka:
         bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-        admin:
-            properties:
-                security.protocol: SASL_SSL
-                sasl.mechanism: AWS_MSK_IAM
-                sasl.jaas.config: software.amazon.msk.auth.iam.IAMLoginModule required;
-                sasl.client.callback.handler.class: software.amazon.msk.auth.iam.IAMClientCallbackHandler
         consumer:
             max.poll.interval.ms: 600000
             max.poll.records: 1

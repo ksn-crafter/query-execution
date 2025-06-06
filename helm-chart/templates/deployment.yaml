@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: dqs-query-execution-deployment
-  namespace: {{ .Values.TENANTS }}
+  namespace: {{ printf "%s-%s" .Values.namespace .Values.TENANTS }}
   labels:
     app: dqs-query-execution
 spec:
@@ -15,6 +15,7 @@ spec:
       labels:
         app: dqs-query-execution
     spec:
+      serviceAccountName: {{ .Values.serviceAccountName }}
       containers:
       - name: dqs-query-execution-container
         image: {{ .Values.IMAGE_URI }}
@@ -29,10 +30,17 @@ spec:
           - name: MONGO_DB_URL
             value: {{.Values.MONGO_DB_URL}}
           - name: INDEX_FILES_COUNT
-            value: {{.Values.INDEX_FILES_COUNT}}
+            value: "{{.Values.INDEX_FILES_COUNT}}"
           - name: CLOUDWATCH_NAMESPACE
             value: {{.Values.CLOUDWATCH_NAMESPACE}}
           - name: OUTPUT_FOLDER_PATH
             value: {{.Values.OUTPUT_FOLDER_PATH}}
           - name: TENANTS
             value: {{.Values.TENANTS}}
+        resources:
+          requests:
+            cpu: 7
+            memory: 1536Mi
+          limits:
+            cpu: 7
+            memory: 2Gi
