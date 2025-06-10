@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dqs-query-execution-deployment
+  name: {{ printf "query-execution-deployment-%s" .Values.TENANTS }}
   namespace: {{ printf "%s-%s" .Values.namespace .Values.TENANTS }}
   labels:
     app: dqs-query-execution
@@ -15,7 +15,9 @@ spec:
       labels:
         app: dqs-query-execution
     spec:
-      serviceAccountName: {{ .Values.serviceAccountName }}
+      serviceAccountName: {{ printf "dqs-query-execution-%s-service-account" .Values.TENANTS }}
+      nodeSelector:
+        kubernetes.io/arch: arm64
       containers:
       - name: dqs-query-execution-container
         image: {{ .Values.IMAGE_URI }}
