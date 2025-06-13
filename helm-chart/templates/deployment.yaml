@@ -1,12 +1,16 @@
+{{- range .Values.TENANTS }}
+{{- $replicaKey := printf "NUMBER_OF_WORKERS_%s" (upper .) }}
+{{- $replicas := index $.Values $replicaKey }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ printf "query-execution-deployment-%s" .Values.TENANTS }}
-  namespace: {{ printf "%s-%s" .Values.namespace .Values.TENANTS }}
+  name: {{ printf "query-execution-deployment-%s" . }}
+  namespace: {{ printf "%s-%s" $.Values.namespace . }}
   labels:
     app: dqs-query-execution
 spec:
-  replicas: {{ .Values.NUMBER_OF_WORKERS  }}
+  replicas: {{ $replicas }}
   selector:
     matchLabels:
       app: dqs-query-execution
@@ -15,30 +19,30 @@ spec:
       labels:
         app: dqs-query-execution
     spec:
-      serviceAccountName: {{ printf "dqs-query-execution-%s-service-account" .Values.TENANTS }}
+      serviceAccountName: {{ printf "dqs-query-execution-%s-service-account" . }}
       nodeSelector:
         kubernetes.io/arch: arm64
       containers:
       - name: dqs-query-execution-container
-        image: {{ .Values.IMAGE_URI }}
+        image: {{ $.Values.IMAGE_URI }}
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
         env:
           - name: API_ALLOWED_ORIGINS
-            value: {{.Values.API_ALLOWED_ORIGINS}}
+            value: {{ $.Values.API_ALLOWED_ORIGINS}}
           - name: KAFKA_BOOTSTRAP_SERVERS
-            value: {{.Values.KAFKA_BOOTSTRAP_SERVERS}}
+            value: {{ $.Values.KAFKA_BOOTSTRAP_SERVERS}}
           - name: MONGO_DB_URL
-            value: {{.Values.MONGO_DB_URL}}
+            value: {{ $.Values.MONGO_DB_URL}}
           - name: INDEX_FILES_COUNT
-            value: "{{.Values.INDEX_FILES_COUNT}}"
+            value: "{{ $.Values.INDEX_FILES_COUNT}}"
           - name: CLOUDWATCH_NAMESPACE
-            value: {{.Values.CLOUDWATCH_NAMESPACE}}
+            value: {{ $.Values.CLOUDWATCH_NAMESPACE}}
           - name: OUTPUT_FOLDER_PATH
-            value: {{.Values.OUTPUT_FOLDER_PATH}}
+            value: {{ $.Values.OUTPUT_FOLDER_PATH}}
           - name: TENANTS
-            value: {{.Values.TENANTS}}
+            value: {{.}}
         resources:
           requests:
             cpu: 7
@@ -46,3 +50,5 @@ spec:
           limits:
             cpu: 7
             memory: 2Gi
+---
+{{- end }}
