@@ -124,7 +124,7 @@ class SubQueryGeneratedConsumerIntegrationTests {
     }
 
     @Test
-    void updatesQueryDescriptionAndSavesSubQuery() {
+    void updatesQueryDescriptionAndSaveSubQuery() {
         queryDescriptionRepository.save(new QueryDescription("query-510", "Deutsche", "Historical", 2001, 2007, QueryStatus.Acknowledged, LocalDateTime.now()));
         String[] indexPaths = {"path-1", "path-2"};
         kafkaTemplate.send("incoming_sub_queries_jpmc", new SubQueryGenerated("query-510", "subquery-1", indexPaths, 2));
@@ -139,9 +139,30 @@ class SubQueryGeneratedConsumerIntegrationTests {
         Optional<SubQuery> subQuery = subQueryRepository.findBySubQueryId("subquery-1");
         assertThat(subQuery.get().subQueryId()).isEqualTo("subquery-1");
         assertThat(subQuery.get().totalSubQueries()).isEqualTo(2);
+
         QueryDescription queryDescription = queryDescriptionRepository.findByQueryId("query-510").get();
         assertThat(queryDescription.status()).isEqualTo(QueryStatus.InProgress);
-
     }
 
+    @Test
+    void updatesQueryDescriptionStatusToCompleted() {
+        queryDescriptionRepository.save(new QueryDescription("query-520", "Deutsche", "Historical", 2001, 2007, QueryStatus.Acknowledged, LocalDateTime.now()));
+        String[] indexPaths = {"path-1", "path-2"};
+        kafkaTemplate.send("incoming_sub_queries_jpmc", new SubQueryGenerated("query-520", "subquery-1520", indexPaths, 2));
+        kafkaTemplate.send("incoming_sub_queries_jpmc", new SubQueryGenerated("query-520", "subquery-2520", indexPaths, 2));
+
+        // we are waiting for the mongo transaction to finish here
+        try {
+            TimeUnit.SECONDS.sleep(5);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        Optional<SubQuery> subQuery = subQueryRepository.findBySubQueryId("subquery-1520");
+        assertThat(subQuery.get().subQueryId()).isEqualTo("subquery-1520");
+        assertThat(subQuery.get().totalSubQueries()).isEqualTo(2);
+
+        QueryDescription queryDescription = queryDescriptionRepository.findByQueryId("query-520").get();
+        assertThat(queryDescription.status()).isEqualTo(QueryStatus.Completed);
+    }
 }
