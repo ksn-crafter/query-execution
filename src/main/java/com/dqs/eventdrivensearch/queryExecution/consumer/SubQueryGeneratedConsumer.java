@@ -9,6 +9,9 @@ import com.dqs.eventdrivensearch.queryExecution.services.QueryDescriptionService
 import com.dqs.eventdrivensearch.queryExecution.services.QueryStatusService;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.time.Instant;
+
 @Component
 public class SubQueryGeneratedConsumer {
     private final QueryDescriptionService queryDescriptionService;
@@ -50,7 +53,9 @@ public class SubQueryGeneratedConsumer {
         if (savedSubQuery) {
             search(subQueryGenerated, queryDescription);
         }
+        Instant now = Instant.now();
         queryStatusService.mayBeCompleteTheQuery(subQueryGenerated.queryId(), subQueryGenerated.subQueryId());
+        System.out.printf("Time to (maybe) update query %s is %d ms \n", subQueryGenerated.queryId(), Duration.between(now, Instant.now()).toMillis());
     }
 
     private void search(SubQueryGenerated subQueryGenerated, QueryDescription queryDescription) {

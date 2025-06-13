@@ -131,7 +131,7 @@ class SubQueryGeneratedConsumerIntegrationTests {
 
         // we are waiting for the mongo transaction to finish here
         try {
-            TimeUnit.SECONDS.sleep(1);
+            TimeUnit.SECONDS.sleep(5);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
