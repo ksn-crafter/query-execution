@@ -32,6 +32,23 @@ public class SubQuery {
         this.tenant = tenant;
     }
 
+    public SubQuery(String id, String queryId, String subQueryId, int totalSubqueries, SubQueryStatus status) {
+        this.id = id;
+        this.queryId = queryId;
+        this.subQueryId = subQueryId;
+        this.totalSubqueries = totalSubqueries;
+        this.status = status;
+    }
+
+    public SubQuery(String id, String queryId, String subQueryId, int totalSubqueries, SubQueryStatus status, LocalDateTime completionTime) {
+        this.id = id;
+        this.queryId = queryId;
+        this.subQueryId = subQueryId;
+        this.totalSubqueries = totalSubqueries;
+        this.status = status;
+        this.completionTime = completionTime;
+    }
+
     public String queryId() {
         return queryId;
     }
@@ -62,5 +79,10 @@ public class SubQuery {
 
     public int totalSubQueries(){
         return totalSubqueries;
+    }
+
+    public void complete() {
+        this.status = SubQueryStatus.COMPLETED;
+        this.completionTime = LocalDateTime.now();
     }
 }

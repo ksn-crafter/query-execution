@@ -63,4 +63,9 @@ public class QueryDescription {
     public void setStatusToInProgress(){
         status = QueryStatus.InProgress;
     }
+
+    public void complete() {
+        this.completionTime = LocalDateTime.now();
+        this.status = QueryStatus.Completed;
+    }
 }

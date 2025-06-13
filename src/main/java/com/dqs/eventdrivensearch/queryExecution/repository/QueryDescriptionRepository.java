@@ -9,4 +9,6 @@ import java.util.Optional;
 @Repository
 public interface QueryDescriptionRepository extends MongoRepository<QueryDescription,String> {
     Optional<QueryDescription> findByQueryId(String queryId);
+
+    void deleteByQueryId(String queryId);
 }
