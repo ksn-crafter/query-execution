@@ -33,6 +33,8 @@ public class DynamicKafkaConsumerConfiguration {
         containerProps.setGroupId(groupId);
         containerProps.setMessageListener((MessageListener<String, SubQueryGenerated>) record -> {
             SubQueryGenerated event = record.value();
+            System.out.println("Received SubQueryGenerated from the partition " + record.partition() + ", for the queryId " + event.queryId());
+
             subQueryGeneratedConsumer.consume(event);
         });
 
