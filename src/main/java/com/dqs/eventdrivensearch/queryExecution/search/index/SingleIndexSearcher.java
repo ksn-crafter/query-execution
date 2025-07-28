@@ -1,6 +1,7 @@
 package com.dqs.eventdrivensearch.queryExecution.search.index;
 
 import com.dqs.eventdrivensearch.queryExecution.search.io.S3IndexDownloader;
+import com.dqs.eventdrivensearch.queryExecution.search.io.S3SearchResultWriter;
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -12,20 +13,26 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.io.*;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -33,12 +40,13 @@ import java.util.zip.ZipInputStream;
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 class SingleIndexSearcher {
     private S3IndexDownloader s3IndexDownloader;
-
+    private S3SearchResultWriter resultWriter;
     private MetricsPublisher metricsPublisher;
 
-    public SingleIndexSearcher(MetricsPublisher metricsPublisher, S3IndexDownloader s3IndexDownloader) {
+    public SingleIndexSearcher(MetricsPublisher metricsPublisher, S3IndexDownloader s3IndexDownloader, S3SearchResultWriter writer) {
         this.metricsPublisher = metricsPublisher;
         this.s3IndexDownloader = s3IndexDownloader;
+        this.resultWriter = writer;
     }
 
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
@@ -63,6 +71,107 @@ class SingleIndexSearcher {
         return searchResult;
     }
 
+    void searchV2(String zipFilePath, Query query, String queryId, String queryResultLocation) throws IOException {
+        Path targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
+        downloadAndSearchOnSegment(zipFilePath, targetTempDirectory, query, queryId, queryResultLocation);
+        deleteDirectory(targetTempDirectory.toFile());
+
+    }
+
+
+    private void downloadAndSearchOnSegment(String filePath, Path tempDir, Query query, String queryId, String queryResultLocation) throws IOException {
+        URL url = new URL(filePath);
+        String bucketName = url.getHost().split("\\.")[0];
+        String prefix = url.getPath().substring(1);
+
+        List<S3Object> splits = s3IndexDownloader.getListing(bucketName, prefix);
+        System.out.println("Working temp directory: " + tempDir);
+
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Future<?>> futures = splits.stream().map(obj -> executor.submit(() -> {
+                String key = obj.key();
+                String fileName = Paths.get(key).getFileName().toString();
+
+                try {
+
+
+                    // Output dir
+                    Path downloadedFile =  s3IndexDownloader.downloadFile(key, bucketName, tempDir);
+                    Path outputDirectory = tempDir.resolve(fileName + "_dir");
+                    Files.createDirectories(outputDirectory);
+
+                    // Process
+                    readSplitAndWriteLuceneSegment(outputDirectory, downloadedFile);
+                    SearchResult result = search(query, queryId, outputDirectory);
+
+                    // write results to s3
+                    System.out.println(result);
+                    resultWriter.write(result, queryResultLocation, filePath);
+
+
+                    System.out.println("Processed " + fileName + " in thread: " + Thread.currentThread());
+
+                } catch (IOException e) {
+                    throw new UncheckedIOException("Error handling file: " + fileName, e);
+                }
+            })).collect(Collectors.toList());
+
+            // Wait for all tasks
+            for (Future<?> future : futures) {
+                future.get(); // rethrow exceptions if any
+            }
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException("Error in VT processing", e.getCause());
+        }
+    }
+
+
+
+    private SearchResult search(Query query, String queryId, Path outputDirectory) throws IOException {
+        // search
+        Directory directory = new MMapDirectory(outputDirectory);
+        Instant start = Instant.now();
+        // Verify the index by searching
+        DirectoryReader reader = DirectoryReader.open(directory);
+        org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
+
+        SearchResult searchResult = readResults(searcher, query);
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
+        return searchResult;
+    }
+
+    private static void readSplitAndWriteLuceneSegment(Path outputDirectory, Path splitFilePath) throws IOException {
+        String splitFileName = splitFilePath.getFileName().toString();
+        String segmentName = splitFileName.substring("split".length());
+
+        try (DataInputStream in = new DataInputStream(new BufferedInputStream(Files.newInputStream(splitFilePath)))) {
+            // Read and write cfeBytes
+            int cfeLen = in.readInt();
+            byte[] cfeBytes = in.readNBytes(cfeLen);
+            Files.write(outputDirectory.resolve(segmentName + ".cfe"), cfeBytes);
+
+            // Read and write cfsBytes
+            int cfsLen = in.readInt();
+            byte[] cfsBytes = in.readNBytes(cfsLen);
+            Files.write(outputDirectory.resolve(segmentName + ".cfs"), cfsBytes);
+
+            // Read and write siBytes
+            int siLen = in.readInt();
+            byte[] siBytes = in.readNBytes(siLen);
+            Files.write(outputDirectory.resolve(segmentName + ".si"), siBytes);
+
+            //Read generation
+            long generation = in.readLong();
+
+            // Read and write segmentsBytes
+            int segLen = in.readInt();
+            byte[] segmentsBytes = in.readNBytes(segLen);
+
+            Files.write(outputDirectory.resolve("segments_" + generation), segmentsBytes);
+        }
+    }
+
     private void deleteTempDirectory(File directory) {
         File[] files = directory.listFiles();
         if (files != null) {
@@ -72,6 +181,23 @@ class SingleIndexSearcher {
                 }
             }
         }
+    }
+
+    private void deleteDirectory(File directory) {
+        if (directory == null || !directory.exists()) return;
+
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    deleteTempDirectory(file);
+                }
+                if (!file.delete()) {
+                    System.err.println("Failed to delete: " + file.getAbsolutePath());
+                }
+            }
+        }
+
     }
 
     private void downloadZipAndUnzipInDirectory(String zipFilePath, Path outputDir, String queryId) throws IOException {
