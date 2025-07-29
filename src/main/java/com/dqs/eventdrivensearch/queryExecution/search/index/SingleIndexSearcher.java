@@ -16,7 +16,7 @@ import org.apache.lucene.store.*;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 import java.io.*;
 import java.net.URL;
@@ -32,7 +32,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -48,7 +47,7 @@ class SingleIndexSearcher {
         this.s3IndexDownloader = s3IndexDownloader;
         this.resultWriter = writer;
     }
-
+    private static final String[] splitKeys = {"dqs-indexes/jpmc/splits/split_0", "dqs-indexes/jpmc/splits/split_1", "dqs-indexes/jpmc/splits/split_2", "dqs-indexes/jpmc/splits/split_3", "dqs-indexes/jpmc/splits/split_4", "dqs-indexes/jpmc/splits/split_5", "dqs-indexes/jpmc/splits/split_6", "dqs-indexes/jpmc/splits/split_7"};
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
     SearchResult search(String zipFilePath, Query query, String queryId) throws IOException {
@@ -71,55 +70,51 @@ class SingleIndexSearcher {
         return searchResult;
     }
 
-    void searchV2(String zipFilePath, Query query, String queryId, String queryResultLocation) throws IOException {
+    void searchV2(String splitPath, Query query, String queryId, String queryResultLocation) throws IOException {
         Path targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
-        downloadAndSearchOnSegment(zipFilePath, targetTempDirectory, query, queryId, queryResultLocation);
+        downloadAndSearchOnSplits(splitPath, targetTempDirectory, query, queryId, queryResultLocation);
         deleteDirectory(targetTempDirectory.toFile());
-
     }
 
 
-    private void downloadAndSearchOnSegment(String filePath, Path tempDir, Query query, String queryId, String queryResultLocation) throws IOException {
-        URL url = new URL(filePath);
+    private void downloadAndSearchOnSplits(String splitPath, Path tempDir, Query query, String queryId, String queryResultLocation) throws IOException {
+        URL url = new URL(splitPath);
         String bucketName = url.getHost().split("\\.")[0];
-        String prefix = url.getPath().substring(1);
-
-        List<S3Object> splits = s3IndexDownloader.getListing(bucketName, prefix);
-        System.out.println("Working temp directory: " + tempDir);
-
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Future<?>> futures = splits.stream().map(obj -> executor.submit(() -> {
-                String key = obj.key();
-                String fileName = Paths.get(key).getFileName().toString();
+            List<Future<?>> futures = new ArrayList<>();
+            for (String splitKey : splitKeys) {
+                futures.add(executor.submit(() -> {
 
-                try {
+                    String splitName = Paths.get(splitKey).getFileName().toString();
 
+                    try(InputStream inputStream = s3IndexDownloader.downloadFile(splitKey, bucketName)) {
 
-                    // Output dir
-                    Path downloadedFile =  s3IndexDownloader.downloadFile(key, bucketName, tempDir);
-                    Path outputDirectory = tempDir.resolve(fileName + "_dir");
-                    Files.createDirectories(outputDirectory);
+                        // Output dir
+                        Path outputDirectory = tempDir.resolve(splitName + "_dir");
+                        Files.createDirectories(outputDirectory);
 
-                    // Process
-                    readSplitAndWriteLuceneSegment(outputDirectory, downloadedFile);
-                    SearchResult result = search(query, queryId, outputDirectory);
+                        // Process
+                        readSplitAndWriteLuceneSegment(outputDirectory, inputStream, splitName);
+                        SearchResult result = searchSingleSplit(query, queryId, outputDirectory);
 
-                    // write results to s3
-                    System.out.println(result);
-                    resultWriter.write(result, queryResultLocation, filePath);
+                        // write results to s3
+                        resultWriter.write(result, queryResultLocation, splitPath);
+                        System.out.println("Processed " + splitName + " in thread: " + Thread.currentThread());
 
-
-                    System.out.println("Processed " + fileName + " in thread: " + Thread.currentThread());
-
-                } catch (IOException e) {
-                    throw new UncheckedIOException("Error handling file: " + fileName, e);
-                }
-            })).collect(Collectors.toList());
+                    }
+                    catch (NoSuchKeyException e) {
+                        System.err.println("split not found: " + splitKey);
+                    }
+                    catch (IOException e) {
+                        throw new UncheckedIOException("Error handling file: " + splitName, e);
+                    }
+                }));
+            }
 
             // Wait for all tasks
             for (Future<?> future : futures) {
-                future.get(); // rethrow exceptions if any
+                future.get();
             }
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException("Error in VT processing", e.getCause());
@@ -128,7 +123,7 @@ class SingleIndexSearcher {
 
 
 
-    private SearchResult search(Query query, String queryId, Path outputDirectory) throws IOException {
+    private SearchResult searchSingleSplit(Query query, String queryId, Path outputDirectory) throws IOException {
         // search
         Directory directory = new MMapDirectory(outputDirectory);
         Instant start = Instant.now();
@@ -137,37 +132,34 @@ class SingleIndexSearcher {
         org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
 
         SearchResult searchResult = readResults(searcher, query);
-        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_SPLIT, Duration.between(start, Instant.now()).toMillis(), queryId);
         return searchResult;
     }
 
-    private static void readSplitAndWriteLuceneSegment(Path outputDirectory, Path splitFilePath) throws IOException {
-        String splitFileName = splitFilePath.getFileName().toString();
-        String segmentName = splitFileName.substring("split".length());
+    private static void readSplitAndWriteLuceneSegment(Path outputDirectory, InputStream inputStream, String splitName) throws IOException {
+        String segmentName = splitName.substring("split".length());
 
-        try (DataInputStream in = new DataInputStream(new BufferedInputStream(Files.newInputStream(splitFilePath)))) {
-            // Read and write cfeBytes
+        try (DataInputStream in = new DataInputStream(new BufferedInputStream(inputStream))) {
             int cfeLen = in.readInt();
-            byte[] cfeBytes = in.readNBytes(cfeLen);
+            byte[] cfeBytes = new byte[cfeLen];
+            in.readFully(cfeBytes);
             Files.write(outputDirectory.resolve(segmentName + ".cfe"), cfeBytes);
 
-            // Read and write cfsBytes
             int cfsLen = in.readInt();
-            byte[] cfsBytes = in.readNBytes(cfsLen);
+            byte[] cfsBytes = new byte[cfsLen];
+            in.readFully(cfsBytes);
             Files.write(outputDirectory.resolve(segmentName + ".cfs"), cfsBytes);
 
-            // Read and write siBytes
             int siLen = in.readInt();
-            byte[] siBytes = in.readNBytes(siLen);
+            byte[] siBytes = new byte[siLen];
+            in.readFully(siBytes);
             Files.write(outputDirectory.resolve(segmentName + ".si"), siBytes);
 
-            //Read generation
             long generation = in.readLong();
 
-            // Read and write segmentsBytes
             int segLen = in.readInt();
-            byte[] segmentsBytes = in.readNBytes(segLen);
-
+            byte[] segmentsBytes = new byte[segLen];
+            in.readFully(segmentsBytes);
             Files.write(outputDirectory.resolve("segments_" + generation), segmentsBytes);
         }
     }
@@ -196,6 +188,11 @@ class SingleIndexSearcher {
                     System.err.println("Failed to delete: " + file.getAbsolutePath());
                 }
             }
+        }
+
+        // Delete the main directory itself
+        if (!directory.delete()) {
+            System.err.println("Failed to delete directory: " + directory.getAbsolutePath());
         }
 
     }
