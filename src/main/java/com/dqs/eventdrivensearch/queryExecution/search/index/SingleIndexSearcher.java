@@ -75,9 +75,15 @@ class SingleIndexSearcher {
     }
 
     void searchV2(String splitPath, Query query, String queryId, String queryResultLocation) throws IOException {
-        Path targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
-        downloadAndSearchOnSplits(splitPath, targetTempDirectory, query, queryId, queryResultLocation);
-        deleteDirectory(targetTempDirectory.toFile());
+        Path targetTempDirectory = null;
+        try {
+            targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
+            downloadAndSearchOnSplits(splitPath, targetTempDirectory, query, queryId, queryResultLocation);
+        } finally {
+            if (targetTempDirectory != null) {
+                deleteDirectory(targetTempDirectory.toFile());
+            }
+        }
     }
 
     private void downloadAndSearchOnSplits(String indexPath, Path tempDir, Query query, String queryId, String queryResultLocation) throws IOException {
@@ -191,8 +197,9 @@ class SingleIndexSearcher {
         File[] files = directory.listFiles();
         if (files != null) {
             for (File file : files) {
+                System.out.println("Attempting to delete " + file.getName());
                 if (file.isDirectory()) {
-                    deleteTempDirectory(file);
+                    this.deleteDirectory(file);
                 }
                 if (!file.delete()) {
                     System.err.println("Failed to delete: " + file.getAbsolutePath());
@@ -204,7 +211,6 @@ class SingleIndexSearcher {
         if (!directory.delete()) {
             System.err.println("Failed to delete directory: " + directory.getAbsolutePath());
         }
-
     }
 
     private void downloadZipAndUnzipInDirectory(String zipFilePath, Path outputDir, String queryId) throws IOException {
