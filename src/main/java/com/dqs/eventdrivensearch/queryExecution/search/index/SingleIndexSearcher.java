@@ -198,16 +198,18 @@ class SingleIndexSearcher {
         File[] files = directory.listFiles();
         if (files != null) {
             for (File file : files) {
-                System.out.println("Attempting to delete " + file.getName());
                 if (file.isDirectory()) {
                     this.deleteDirectory(file);
-                }
-                if (!file.delete()) {
-                    System.err.println("Failed to delete: " + file.getAbsolutePath());
+                } else {
+                    System.out.println("Attempting to delete " + file.getName());
+                    if (!file.delete()) {
+                        System.err.println("Failed to delete: " + file.getAbsolutePath());
+                    }
                 }
             }
         }
 
+        System.out.println("Attempting to delete " + directory.getName());
         // Delete the main directory itself
         if (!directory.delete()) {
             System.err.println("Failed to delete directory: " + directory.getAbsolutePath());
