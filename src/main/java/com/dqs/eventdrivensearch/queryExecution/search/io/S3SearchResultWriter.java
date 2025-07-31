@@ -9,9 +9,15 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -37,7 +43,7 @@ public class S3SearchResultWriter {
             //FIXME: Add the size of documentIds
 
             //FIXME: Add time for creating content
-            String content = indexFilePath + "\n" + String.join("\n", searchResult.documentIds());
+            String content = getStringV2(searchResult.documentIds(), indexFilePath);
 
             //FIXME: Add time for putObject
             s3Client.putObject(
@@ -51,6 +57,41 @@ public class S3SearchResultWriter {
             System.out.println(Level.WARNING + e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "outPutFolderPath: " + outPutFolderPath);
             throw new RuntimeException(e);
         }
+    }
+
+    static String getString(List<String> documentIds, String indexFilePath) {
+        return indexFilePath + "\n" + String.join("\n", documentIds);
+    }
+
+    static String getStringV2(List<String> documentIds, String indexFilePath) {
+        int totalLength = indexFilePath.length() + 1; // for '\n'
+        for (String id : documentIds) totalLength += id.length() + 1; // +1 for '\n'
+
+        StringBuilder builder = new StringBuilder(totalLength);
+        builder.append(indexFilePath).append('\n');
+
+        for (String documentId : documentIds) {
+            builder.append(documentId);
+            builder.append('\n');
+        }
+        return builder.toString();
+    }
+
+    static byte[] getStringV3(List<String> documentIds, String indexFilePath) throws IOException {
+        int totalLength = indexFilePath.length() + 1; // for '\n'
+        for (String id : documentIds) totalLength += id.length() + 1; // +1 for '\n'
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream(totalLength);
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8))) {
+            writer.write(indexFilePath);
+            writer.write('\n');
+            for (String id : documentIds) {
+                writer.write(id);
+                writer.write('\n');
+            }
+            writer.flush();
+        }
+        return out.toByteArray();
     }
 
     private String getFilePath(SearchResult searchResult, String folderPath) {
