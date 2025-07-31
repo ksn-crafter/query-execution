@@ -25,6 +25,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -148,28 +149,28 @@ class SingleIndexSearcher {
         //FIXME: Add time for  readSplitAndWriteLuceneSegment
         String segmentName = splitName.substring("split".length());
 
-        try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(inputStream.readAllBytes()))) {
+        try (DataInputStream in = new DataInputStream(new FastByteArrayInputStream(inputStream.readAllBytes()))) {
             int cfeLen = in.readInt();
             byte[] cfeBytes = new byte[cfeLen];
             in.readFully(cfeBytes);
-            Files.write(outputDirectory.resolve(segmentName + ".cfe"), cfeBytes);
+            Files.write(outputDirectory.resolve(segmentName + ".cfe"), cfeBytes, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 
             int cfsLen = in.readInt();
             byte[] cfsBytes = new byte[cfsLen];
             in.readFully(cfsBytes);
-            Files.write(outputDirectory.resolve(segmentName + ".cfs"), cfsBytes);
+            Files.write(outputDirectory.resolve(segmentName + ".cfs"), cfsBytes, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 
             int siLen = in.readInt();
             byte[] siBytes = new byte[siLen];
             in.readFully(siBytes);
-            Files.write(outputDirectory.resolve(segmentName + ".si"), siBytes);
+            Files.write(outputDirectory.resolve(segmentName + ".si"), siBytes, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 
             long generation = in.readLong();
 
             int segLen = in.readInt();
             byte[] segmentsBytes = new byte[segLen];
             in.readFully(segmentsBytes);
-            Files.write(outputDirectory.resolve("segments_" + generation), segmentsBytes);
+            Files.write(outputDirectory.resolve("segments_" + generation), segmentsBytes, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         }
     }
 
