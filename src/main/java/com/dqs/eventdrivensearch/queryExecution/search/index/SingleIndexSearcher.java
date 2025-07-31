@@ -7,12 +7,14 @@ import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.store.*;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.MMapDirectory;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -47,6 +49,7 @@ class SingleIndexSearcher {
         this.s3IndexDownloader = s3IndexDownloader;
         this.resultWriter = writer;
     }
+
     private static final String[] splitKeys = {"dqs-indexes/jpmc/splits/split_0", "dqs-indexes/jpmc/splits/split_1", "dqs-indexes/jpmc/splits/split_2", "dqs-indexes/jpmc/splits/split_3", "dqs-indexes/jpmc/splits/split_4", "dqs-indexes/jpmc/splits/split_5", "dqs-indexes/jpmc/splits/split_6", "dqs-indexes/jpmc/splits/split_7"};
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
@@ -88,7 +91,7 @@ class SingleIndexSearcher {
 
                     String splitName = Paths.get(splitKey).getFileName().toString();
 
-                    try(InputStream inputStream = s3IndexDownloader.downloadFile(splitKey, bucketName)) {
+                    try (InputStream inputStream = s3IndexDownloader.downloadFile(splitKey, bucketName)) {
 
                         // Output dir
                         Path outputDirectory = tempDir.resolve(splitName + "_dir");
@@ -102,11 +105,9 @@ class SingleIndexSearcher {
                         resultWriter.write(result, queryResultLocation, splitPath);
                         System.out.println("Processed " + splitName + " in thread: " + Thread.currentThread());
 
-                    }
-                    catch (NoSuchKeyException e) {
+                    } catch (NoSuchKeyException e) {
                         System.err.println("split not found: " + splitKey);
-                    }
-                    catch (IOException e) {
+                    } catch (IOException e) {
                         throw new UncheckedIOException("Error handling file: " + splitName, e);
                     }
                 }));
@@ -120,8 +121,6 @@ class SingleIndexSearcher {
             throw new RuntimeException("Error in VT processing", e.getCause());
         }
     }
-
-
 
     private SearchResult searchSingleSplit(Query query, String queryId, Path outputDirectory) throws IOException {
         // search
@@ -238,10 +237,10 @@ class SingleIndexSearcher {
         List<String> documentIds = new ArrayList<>();
         Long totalHits = null;
 
+        StoredFields storedFields = searcher.getIndexReader().storedFields();
         while (true) {
             // Perform the search, either starting fresh or after the last document of the previous page
-            TopDocs results = (lastDoc == null) ? searcher.search(query, optimalPageSize)
-                    : searcher.searchAfter(lastDoc, query, optimalPageSize);
+            TopDocs results = (lastDoc == null) ? searcher.search(query, optimalPageSize) : searcher.searchAfter(lastDoc, query, optimalPageSize);
 
             /*
                 TO BE DISCUSSED - Mismatch in return types:
@@ -252,7 +251,7 @@ class SingleIndexSearcher {
 
             // Process the current page of results
             for (ScoreDoc scoreDoc : results.scoreDocs) {
-                Document hitDoc = searcher.getIndexReader().storedFields().document(scoreDoc.doc, Set.of("id"));
+                Document hitDoc = storedFields.document(scoreDoc.doc, Set.of("id"));
                 documentIds.add(hitDoc.getField("id").stringValue() + "," + scoreDoc.score);
             }
 

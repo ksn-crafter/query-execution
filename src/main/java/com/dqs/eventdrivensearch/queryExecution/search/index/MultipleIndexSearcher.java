@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -112,16 +113,14 @@ public class MultipleIndexSearcher {
                 try {
                     searchOnSplits(queryResultLocation, splitPath, singleIndexSearcher, query, queryId, s3SearchResultWriter);
                 } catch (IOException | ParseException e) {
-                    System.out.println(String.format("Search for split path %s has failed. The query id is %s and sub query id is %s", splitPath, queryId, subQueryId));
-                    logger.log(Level.WARNING, e.getMessage() + "\n" + e.getStackTrace() + "\n" + "splitPath: " + splitPath);
+                    System.out.printf("SearchV2 for split path %s has failed. The query id is %s and sub query id is %s%n", splitPath, queryId, subQueryId);
+                    logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "splitPath: " + splitPath);
                     throw new RuntimeException(e);
                 }
 
             }
-
-
         } catch (Exception e) {
-            System.out.println(e.getMessage() + "\n" + e.getStackTrace().toString());
+            System.out.println(e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()));
             throw e;
         } finally {
             metricsPublisher.putMetricData(MetricsPublisher.MetricNames.INTERNAL_SEARCH_TIME, Duration.between(start, Instant.now()).toMillis(), queryId);
@@ -144,7 +143,7 @@ public class MultipleIndexSearcher {
 
     private void searchOnSplits(String queryResultLocation, String splitPath, SingleIndexSearcher singleIndexSearcher, Query query, String queryId, S3SearchResultWriter s3SearchResultWriter) throws IOException, ParseException {
         Instant start = Instant.now();
-        singleIndexSearcher.searchV2(splitPath, query, queryId,queryResultLocation);
+        singleIndexSearcher.searchV2(splitPath, query, queryId, queryResultLocation);
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_SPLITS_LOAD_INTO_LUCENE_DIRECTORY_AND_SEARCH, Duration.between(start, Instant.now()).toMillis(), queryId);
     }
 }
