@@ -10,6 +10,7 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -27,7 +28,6 @@ public class S3SearchResultWriter {
         String filePath = getFilePath(searchResult, outPutFolderPath);
 
         try {
-
             URL url = new URL(filePath);
             String bucketName = url.getHost().split("\\.")[0];
             String key = url.getPath().substring(1);
@@ -37,9 +37,8 @@ public class S3SearchResultWriter {
                     .bucket(bucketName)
                     .key(key)
                     .build(), RequestBody.fromString(content));
-
         } catch (MalformedURLException | NoSuchKeyException e) {
-            System.out.println(Level.WARNING + e.getMessage() + "\n" + e.getStackTrace() + "\n" + "outPutFolderPath: " + outPutFolderPath);
+            System.out.println(Level.WARNING + e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "outPutFolderPath: " + outPutFolderPath);
             throw new RuntimeException(e);
         }
     }

@@ -64,5 +64,4 @@ public class S3IndexDownloader {
 
         return s3Client.getObject(getReq);
     }
-
 }

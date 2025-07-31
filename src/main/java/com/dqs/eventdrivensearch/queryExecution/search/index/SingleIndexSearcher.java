@@ -79,17 +79,16 @@ class SingleIndexSearcher {
         deleteDirectory(targetTempDirectory.toFile());
     }
 
-    private void downloadAndSearchOnSplits(String splitPath, Path tempDir, Query query, String queryId, String queryResultLocation) throws IOException {
-        URL url = new URL(splitPath);
+    private void downloadAndSearchOnSplits(String indexPath, Path tempDir, Query query, String queryId, String queryResultLocation) throws IOException {
+        URL url = new URL(indexPath);
         String bucketName = url.getHost().split("\\.")[0];
 
+        //TODO: Remove executor and use VirtualThread directly
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<SearchResult>> futures = new ArrayList<>(splitKeys.length);
             for (String splitKey : splitKeys) {
                 futures.add(executor.submit(() -> {
-
                     String splitName = Paths.get(splitKey).getFileName().toString();
-
                     try (InputStream inputStream = s3IndexDownloader.downloadFile(splitKey, bucketName)) {
 
                         // Output dir
@@ -120,9 +119,8 @@ class SingleIndexSearcher {
 
             // Avoid using executor, run a virtual thread to write the final result.
             Thread.ofVirtual().start(() -> {
-                resultWriter.write(finalResult, queryResultLocation, splitPath);
+                resultWriter.write(finalResult, queryResultLocation, indexPath);
             }).join();
-
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException("Error in VT processing", e.getCause());
         }
@@ -130,7 +128,7 @@ class SingleIndexSearcher {
 
     private SearchResult searchSingleSplit(Query query, String queryId, Path outputDirectory) throws IOException {
         // search
-        Directory directory = new MMapDirectory(outputDirectory);
+        Directory directory = new MMapDirectory(outputDirectory); //TODO: Is MMap meaningful?
         Instant start = Instant.now();
         // Verify the index by searching
         DirectoryReader reader = DirectoryReader.open(directory);
@@ -144,7 +142,7 @@ class SingleIndexSearcher {
     private static void readSplitAndWriteLuceneSegment(Path outputDirectory, InputStream inputStream, String splitName) throws IOException {
         String segmentName = splitName.substring("split".length());
 
-        try (DataInputStream in = new DataInputStream(new BufferedInputStream(inputStream))) {
+        try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(inputStream.readAllBytes()))) {
             int cfeLen = in.readInt();
             byte[] cfeBytes = new byte[cfeLen];
             in.readFully(cfeBytes);

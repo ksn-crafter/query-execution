@@ -96,7 +96,7 @@ public class MultipleIndexSearcher {
         }
     }
 
-    public void searchV2(String searchQueryString, String queryId, String[] splitPaths, String subQueryId) throws ParseException {
+    public void searchV2(String searchQueryString, String queryId, String[] indexPaths, String subQueryId) throws ParseException {
         Instant start = Instant.now();
 
         try {
@@ -104,17 +104,18 @@ public class MultipleIndexSearcher {
                     ? outputFolderPath + queryId
                     : outputFolderPath + "/" + queryId;
 
-            for (int idx = 0; idx < splitPaths.length; idx++) {
+            //TODO: run these indexes in a threadpool
+            for (int idx = 0; idx < indexPaths.length; idx++) {
                 SingleIndexSearcher singleIndexSearcher = singleIndexSearchers.get(idx);
-                String splitPath = splitPaths[idx];
+                String indexPath = indexPaths[idx];
                 S3SearchResultWriter s3SearchResultWriter = s3SearchResultWriters.get(idx);
                 var query = singleIndexSearcher.getQuery(searchQueryString, new StandardAnalyzer());
 
                 try {
-                    searchOnSplits(queryResultLocation, splitPath, singleIndexSearcher, query, queryId, s3SearchResultWriter);
+                    searchOnSplits(queryResultLocation, indexPath, singleIndexSearcher, query, queryId, s3SearchResultWriter);
                 } catch (IOException | ParseException e) {
-                    System.out.printf("SearchV2 for split path %s has failed. The query id is %s and sub query id is %s%n", splitPath, queryId, subQueryId);
-                    logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "splitPath: " + splitPath);
+                    System.out.printf("SearchV2 for split path %s has failed. The query id is %s and sub query id is %s%n", indexPath, queryId, subQueryId);
+                    logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "indexPath: " + indexPath);
                     throw new RuntimeException(e);
                 }
             }
