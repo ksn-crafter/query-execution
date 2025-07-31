@@ -141,14 +141,15 @@ class SingleIndexSearcher {
 
         // search
         Instant start = Instant.now();
-        Directory directory = new MMapDirectory(outputDirectory); //TODO: Is MMap meaningful?
-        // Verify the index by searching
-        DirectoryReader reader = DirectoryReader.open(directory);
-        org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
+        try(Directory directory = new MMapDirectory(outputDirectory)) { //TODO: Is MMap meaningful?
+            // Verify the index by searching
+            DirectoryReader reader = DirectoryReader.open(directory);
+            org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
 
-        SearchResult searchResult = readResults(searcher, query);
-        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_SPLIT, Duration.between(start, Instant.now()).toMillis(), queryId);
-        return searchResult;
+            SearchResult searchResult = readResults(searcher, query);
+            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_SPLIT, Duration.between(start, Instant.now()).toMillis(), queryId);
+            return searchResult;
+        }
     }
 
     private static void readSplitAndWriteLuceneSegment(Path outputDirectory, InputStream inputStream, String splitName) throws IOException {
