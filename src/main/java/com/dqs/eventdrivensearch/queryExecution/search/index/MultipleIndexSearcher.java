@@ -117,7 +117,6 @@ public class MultipleIndexSearcher {
                     logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "splitPath: " + splitPath);
                     throw new RuntimeException(e);
                 }
-
             }
         } catch (Exception e) {
             System.out.println(e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()));

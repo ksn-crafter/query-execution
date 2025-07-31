@@ -32,6 +32,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -59,11 +61,11 @@ public class MultipleIndexSearcherWithSplitsIntegrationTests {
         @Bean
         @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
         @Primary
-        public S3Client s3Client(){
+        public S3Client s3Client() {
             return S3Client.builder()
                     .endpointOverride(URI.create(localStack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
                     .region(Region.of(localStack.getRegion()))
-                    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localStack.getAccessKey(),localStack.getSecretKey())))
+                    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localStack.getAccessKey(), localStack.getSecretKey())))
                     .build();
         }
 
@@ -74,7 +76,7 @@ public class MultipleIndexSearcherWithSplitsIntegrationTests {
             return CloudWatchClient.builder()
                     .endpointOverride(URI.create(localStack.getEndpointOverride(LocalStackContainer.Service.CLOUDWATCH).toString()))
                     .region(Region.of(localStack.getRegion()))
-                    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localStack.getAccessKey(),localStack.getSecretKey())))
+                    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localStack.getAccessKey(), localStack.getSecretKey())))
                     .build();
         }
     }
@@ -100,7 +102,7 @@ public class MultipleIndexSearcherWithSplitsIntegrationTests {
         String[] indexPaths = {s3SplitPath};
         String queryId = "query-1";
         String subQueryId = "sub-query-1";
-        searcher.searchV2("Historical",queryId,indexPaths,subQueryId);
+        searcher.searchV2("Historical", queryId, indexPaths, subQueryId);
 
         URI s3Uri = URI.create(s3OutputPath + "/" + queryId);
         String bucketName = s3Uri.getHost().split("\\.")[0];

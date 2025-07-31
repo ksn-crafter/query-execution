@@ -40,9 +40,9 @@ import java.util.zip.ZipInputStream;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 class SingleIndexSearcher {
-    private S3IndexDownloader s3IndexDownloader;
-    private S3SearchResultWriter resultWriter;
-    private MetricsPublisher metricsPublisher;
+    private final S3IndexDownloader s3IndexDownloader;
+    private final S3SearchResultWriter resultWriter;
+    private final MetricsPublisher metricsPublisher;
 
     public SingleIndexSearcher(MetricsPublisher metricsPublisher, S3IndexDownloader s3IndexDownloader, S3SearchResultWriter writer) {
         this.metricsPublisher = metricsPublisher;
