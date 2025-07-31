@@ -51,7 +51,7 @@ class SingleIndexSearcher {
         this.resultWriter = writer;
     }
 
-    private static final String[] splitKeys = {"dqs-indexes/jpmc/splits/split_0", "dqs-indexes/jpmc/splits/split_1", "dqs-indexes/jpmc/splits/split_2", "dqs-indexes/jpmc/splits/split_3", "dqs-indexes/jpmc/splits/split_4", "dqs-indexes/jpmc/splits/split_5", "dqs-indexes/jpmc/splits/split_6", "dqs-indexes/jpmc/splits/split_7"};
+    private static final String[] splitKeys = {"dqs-indexes/jpmc/splits_9_12/split_0", "dqs-indexes/jpmc/splits_9_12/split_1", "dqs-indexes/jpmc/splits_9_12/split_2", "dqs-indexes/jpmc/splits_9_12/split_3", "dqs-indexes/jpmc/splits_9_12/split_4", "dqs-indexes/jpmc/splits_9_12/split_5"};
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
     SearchResult search(String zipFilePath, Query query, String queryId) throws IOException {
@@ -87,6 +87,7 @@ class SingleIndexSearcher {
     }
 
     private void downloadAndSearchOnSplits(String indexPath, Path tempDir, Query query, String queryId, String queryResultLocation) throws IOException {
+        Instant start = Instant.now();
         URL url = new URL(indexPath);
         String bucketName = url.getHost().split("\\.")[0];
 
@@ -103,8 +104,15 @@ class SingleIndexSearcher {
                         Path outputDirectory = tempDir.resolve(splitName + "_dir");
                         Files.createDirectories(outputDirectory);
 
+                        Instant readSplitFromS3Start = Instant.now();
+                        byte[] splitBytes = inputStream.readAllBytes();
+                        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_FROM_S3, Duration.between(readSplitFromS3Start, Instant.now()).toMillis(), queryId);
+
                         // Process
-                        readSplitAndWriteLuceneSegment(outputDirectory, inputStream, splitName);
+                        Instant readSplitAndWriteLuceneSegmentStart = Instant.now();
+                        readSplitAndWriteLuceneSegment(outputDirectory, splitBytes, splitName);
+                        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_AND_WRITE_LUCENE_SEGMENT, Duration.between(readSplitAndWriteLuceneSegmentStart, Instant.now()).toMillis(), queryId);
+
 
                         System.out.println("Processed (not written) " + splitName + " in thread: " + Thread.currentThread());
                         return searchSingleSplit(query, queryId, outputDirectory);
@@ -125,11 +133,13 @@ class SingleIndexSearcher {
                 finalResult.mergeFrom(searchResult);
             }
 
-            //FIXME: Add time for the creation of finalResult
+            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.FINAL_RESULT_GENERATION_FOR_SINGLE_SPLIT, Duration.between(start, Instant.now()).toMillis(), queryId);
 
             // Avoid using executor, run a virtual thread to write the final result.
             Thread.ofVirtual().start(() -> {
-                resultWriter.write(finalResult, queryResultLocation, indexPath);
+                Instant writeStart = Instant.now();
+                resultWriter.write(finalResult, queryResultLocation, indexPath, queryId);
+                metricsPublisher.putMetricData(MetricsPublisher.MetricNames.WRITE_RESULT_TO_S3_FOR_SINGLE_INDEX, Duration.between(writeStart, Instant.now()).toMillis(), queryId);
             }).join();
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException("Error in VT processing", e.getCause());
@@ -137,26 +147,32 @@ class SingleIndexSearcher {
     }
 
     private SearchResult searchSingleSplit(Query query, String queryId, Path outputDirectory) throws IOException {
-        //FIXME: Add time for each step in searchSingleSplit
-
         // search
         Instant start = Instant.now();
-        try(Directory directory = new MMapDirectory(outputDirectory)) { //TODO: Is MMap meaningful?
+        try (Directory directory = new MMapDirectory(outputDirectory)) { //TODO: Is MMap meaningful?
+            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.CREATE_MEMORY_MAPPED_DIRECTORY, Duration.between(start, Instant.now()).toMillis(), queryId);
+
             // Verify the index by searching
+            Instant createSearcherStart = Instant.now();
             DirectoryReader reader = DirectoryReader.open(directory);
             org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
+            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.CREATE_SEARCHER, Duration.between(createSearcherStart, Instant.now()).toMillis(), queryId);
 
+
+            Instant readResultStart = Instant.now();
             SearchResult searchResult = readResults(searcher, query);
+            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_RESULTS, Duration.between(readResultStart, Instant.now()).toMillis(), queryId);
+
             metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_SPLIT, Duration.between(start, Instant.now()).toMillis(), queryId);
             return searchResult;
         }
     }
 
-    private static void readSplitAndWriteLuceneSegment(Path outputDirectory, InputStream inputStream, String splitName) throws IOException {
-        //FIXME: Add time for  readSplitAndWriteLuceneSegment
+    private void readSplitAndWriteLuceneSegment(Path outputDirectory, byte[] splitBytes, String splitName) throws IOException {
+
         String segmentName = splitName.substring("split".length());
 
-        try (DataInputStream in = new DataInputStream(new FastByteArrayInputStream(inputStream.readAllBytes()))) {
+        try (DataInputStream in = new DataInputStream(new FastByteArrayInputStream(splitBytes))) {
             int cfeLen = in.readInt();
             byte[] cfeBytes = new byte[cfeLen];
             in.readFully(cfeBytes);
@@ -179,6 +195,7 @@ class SingleIndexSearcher {
             in.readFully(segmentsBytes);
             Files.write(outputDirectory.resolve("segments_" + generation), segmentsBytes, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         }
+
     }
 
     private void deleteTempDirectory(File directory) {
@@ -251,8 +268,6 @@ class SingleIndexSearcher {
     }
 
     private SearchResult readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {
-        //FIXME: Add time for  readResults
-
         final int optimalPageSize = 30000; // Number of results per page
         ScoreDoc lastDoc = null; // Starting point for pagination (null for first page)
         List<String> documentIds = new ArrayList<>();

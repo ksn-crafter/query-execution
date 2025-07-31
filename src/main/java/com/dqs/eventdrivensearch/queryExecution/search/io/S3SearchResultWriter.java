@@ -1,5 +1,6 @@
 package com.dqs.eventdrivensearch.queryExecution.search.io;
 
+import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -16,6 +17,8 @@ import java.io.OutputStreamWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -26,13 +29,15 @@ import java.util.logging.Level;
 public class S3SearchResultWriter {
 
     final private S3Client s3Client;
+    final MetricsPublisher metricsPublisher;
 
-    public S3SearchResultWriter(S3Client s3Client) {
+    public S3SearchResultWriter(S3Client s3Client, MetricsPublisher metricsPublisher) {
         this.s3Client = s3Client;
+        this.metricsPublisher = metricsPublisher;
     }
 
     public void write(SearchResult searchResult, String outPutFolderPath, String indexFilePath) {
-        //FIXME: Add time for write
+
         String filePath = getFilePath(searchResult, outPutFolderPath);
 
         try {
@@ -40,12 +45,8 @@ public class S3SearchResultWriter {
             String bucketName = url.getHost().split("\\.")[0];
             String key = url.getPath().substring(1);
 
-            //FIXME: Add the size of documentIds
-
-            //FIXME: Add time for creating content
             String content = getStringV2(searchResult.documentIds(), indexFilePath);
 
-            //FIXME: Add time for putObject
             s3Client.putObject(
                     PutObjectRequest.builder()
                             .bucket(bucketName)
@@ -53,6 +54,39 @@ public class S3SearchResultWriter {
                             .build(),
                     RequestBody.fromString(content)
             );
+        } catch (MalformedURLException | NoSuchKeyException e) {
+            System.out.println(Level.WARNING + e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "outPutFolderPath: " + outPutFolderPath);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void write(SearchResult searchResult, String outPutFolderPath, String indexFilePath, String queryId) {
+
+        String filePath = getFilePath(searchResult, outPutFolderPath);
+
+        try {
+            URL url = new URL(filePath);
+            String bucketName = url.getHost().split("\\.")[0];
+            String key = url.getPath().substring(1);
+
+            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.NUMBER_OF_MATCHING_DOCS_IN_INDEX, searchResult.documentIds().size(), queryId);
+
+
+            Instant start = Instant.now();
+            String content = getStringV2(searchResult.documentIds(), indexFilePath);
+            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.CONTENT_GENERATION_FROM_SEARCH_RESULT, Duration.between(start, Instant.now()).toMillis(), queryId);
+
+            Instant putObjectStart = Instant.now();
+            s3Client.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(key)
+                            .build(),
+                    RequestBody.fromString(content)
+            );
+
+            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.RESULT_PUT_OBJECT, Duration.between(putObjectStart, Instant.now()).toMillis(), queryId);
+
         } catch (MalformedURLException | NoSuchKeyException e) {
             System.out.println(Level.WARNING + e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "outPutFolderPath: " + outPutFolderPath);
             throw new RuntimeException(e);

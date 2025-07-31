@@ -1,7 +1,6 @@
 package com.dqs.eventdrivensearch.queryExecution.search.index;
 
 
-
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,7 +53,7 @@ public class MultipleIndexSearcherWithSplitsIntegrationTests {
     @Autowired
     private S3Client s3Client;
 
-    private final String s3SplitPath = "https://test-bucket/dqs-indexes/jpmc/splits/split_0";
+    private final String s3SplitPath = "https://test-bucket/dqs-indexes/jpmc/splits_9_12/split_0";
 
     @TestConfiguration
     static class AwsClientTestConfig {

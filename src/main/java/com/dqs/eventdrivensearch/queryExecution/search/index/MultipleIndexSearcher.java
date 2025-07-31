@@ -120,7 +120,8 @@ public class MultipleIndexSearcher {
                 }
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()));
+//            System.out.println(e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()));
+            e.printStackTrace();
             throw e;
         } finally {
             metricsPublisher.putMetricData(MetricsPublisher.MetricNames.INTERNAL_SEARCH_TIME, Duration.between(start, Instant.now()).toMillis(), queryId);
