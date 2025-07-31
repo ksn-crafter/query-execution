@@ -8,6 +8,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
@@ -25,6 +26,7 @@ public class S3SearchResultWriter {
     }
 
     public void write(SearchResult searchResult, String outPutFolderPath, String indexFilePath) {
+        //FIXME: Add time for write
         String filePath = getFilePath(searchResult, outPutFolderPath);
 
         try {
@@ -32,11 +34,19 @@ public class S3SearchResultWriter {
             String bucketName = url.getHost().split("\\.")[0];
             String key = url.getPath().substring(1);
 
+            //FIXME: Add the size of documentIds
+
+            //FIXME: Add time for creating content
             String content = indexFilePath + "\n" + String.join("\n", searchResult.documentIds());
-            s3Client.putObject(PutObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(key)
-                    .build(), RequestBody.fromString(content));
+
+            //FIXME: Add time for putObject
+            s3Client.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(key)
+                            .build(),
+                    RequestBody.fromString(content)
+            );
         } catch (MalformedURLException | NoSuchKeyException e) {
             System.out.println(Level.WARNING + e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "outPutFolderPath: " + outPutFolderPath);
             throw new RuntimeException(e);

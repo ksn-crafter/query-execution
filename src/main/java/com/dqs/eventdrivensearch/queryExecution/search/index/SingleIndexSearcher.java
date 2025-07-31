@@ -91,7 +91,8 @@ class SingleIndexSearcher {
                     String splitName = Paths.get(splitKey).getFileName().toString();
                     try (InputStream inputStream = s3IndexDownloader.downloadFile(splitKey, bucketName)) {
 
-                        // Output dir
+                        // Output dir,
+                        //TODO: maybe leverage RAM directory on linux/mac
                         Path outputDirectory = tempDir.resolve(splitName + "_dir");
                         Files.createDirectories(outputDirectory);
 
@@ -117,6 +118,8 @@ class SingleIndexSearcher {
                 finalResult.mergeFrom(searchResult);
             }
 
+            //FIXME: Add time for the creation of finalResult
+
             // Avoid using executor, run a virtual thread to write the final result.
             Thread.ofVirtual().start(() -> {
                 resultWriter.write(finalResult, queryResultLocation, indexPath);
@@ -127,9 +130,11 @@ class SingleIndexSearcher {
     }
 
     private SearchResult searchSingleSplit(Query query, String queryId, Path outputDirectory) throws IOException {
+        //FIXME: Add time for each step in searchSingleSplit
+
         // search
-        Directory directory = new MMapDirectory(outputDirectory); //TODO: Is MMap meaningful?
         Instant start = Instant.now();
+        Directory directory = new MMapDirectory(outputDirectory); //TODO: Is MMap meaningful?
         // Verify the index by searching
         DirectoryReader reader = DirectoryReader.open(directory);
         org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
@@ -140,6 +145,7 @@ class SingleIndexSearcher {
     }
 
     private static void readSplitAndWriteLuceneSegment(Path outputDirectory, InputStream inputStream, String splitName) throws IOException {
+        //FIXME: Add time for  readSplitAndWriteLuceneSegment
         String segmentName = splitName.substring("split".length());
 
         try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(inputStream.readAllBytes()))) {
@@ -235,6 +241,7 @@ class SingleIndexSearcher {
     }
 
     private SearchResult readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {
+        //FIXME: Add time for  readResults
 
         final int optimalPageSize = 30000; // Number of results per page
         ScoreDoc lastDoc = null; // Starting point for pagination (null for first page)
