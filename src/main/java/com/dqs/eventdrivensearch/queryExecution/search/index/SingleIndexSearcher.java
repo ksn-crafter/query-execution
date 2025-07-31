@@ -79,13 +79,12 @@ class SingleIndexSearcher {
         deleteDirectory(targetTempDirectory.toFile());
     }
 
-
     private void downloadAndSearchOnSplits(String splitPath, Path tempDir, Query query, String queryId, String queryResultLocation) throws IOException {
         URL url = new URL(splitPath);
         String bucketName = url.getHost().split("\\.")[0];
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Future<?>> futures = new ArrayList<>();
+            List<Future<SearchResult>> futures = new ArrayList<>(splitKeys.length);
             for (String splitKey : splitKeys) {
                 futures.add(executor.submit(() -> {
 
@@ -99,24 +98,31 @@ class SingleIndexSearcher {
 
                         // Process
                         readSplitAndWriteLuceneSegment(outputDirectory, inputStream, splitName);
-                        SearchResult result = searchSingleSplit(query, queryId, outputDirectory);
 
-                        // write results to s3
-                        resultWriter.write(result, queryResultLocation, splitPath);
-                        System.out.println("Processed " + splitName + " in thread: " + Thread.currentThread());
-
+                        System.out.println("Processed (not written) " + splitName + " in thread: " + Thread.currentThread());
+                        return searchSingleSplit(query, queryId, outputDirectory);
                     } catch (NoSuchKeyException e) {
                         System.err.println("split not found: " + splitKey);
+                        return null;
                     } catch (IOException e) {
                         throw new UncheckedIOException("Error handling file: " + splitName, e);
                     }
                 }));
             }
 
-            // Wait for all tasks
-            for (Future<?> future : futures) {
-                future.get();
+            final SearchResult finalResult = futures.getFirst().get();
+
+            // Wait for all tasks and merge the result in finalResult.
+            for (int index = 1; index < futures.size(); index++) {
+                SearchResult searchResult = futures.get(index).get();
+                finalResult.mergeFrom(searchResult);
             }
+
+            // Avoid using executor, run a virtual thread to write the final result.
+            Thread.ofVirtual().start(() -> {
+                resultWriter.write(finalResult, queryResultLocation, splitPath);
+            }).join();
+
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException("Error in VT processing", e.getCause());
         }
