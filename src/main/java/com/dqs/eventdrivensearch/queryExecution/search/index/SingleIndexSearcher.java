@@ -261,7 +261,7 @@ public class SingleIndexSearcher {
                 } else {
                     System.out.println("Attempting to delete " + file.getName());
                     if (!file.delete()) {
-                        System.err.println("Failed to delete: " + file.getAbsolutePath());
+                        System.out.println("Failed to delete: " + file.getAbsolutePath());
                     }
                 }
             }
@@ -270,7 +270,7 @@ public class SingleIndexSearcher {
         System.out.println("Attempting to delete " + directory.getName());
         // Delete the main directory itself
         if (!directory.delete()) {
-            System.err.println("Failed to delete directory: " + directory.getAbsolutePath());
+            System.out.println("Failed to delete directory: " + directory.getAbsolutePath());
         }
     }
 
