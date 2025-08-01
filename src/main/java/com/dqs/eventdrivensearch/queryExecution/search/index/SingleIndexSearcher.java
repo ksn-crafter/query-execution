@@ -13,8 +13,7 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.MMapDirectory;
+import org.apache.lucene.store.*;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -22,9 +21,6 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 import java.io.*;
 import java.net.URL;
-import java.nio.ByteBuffer;
-import java.nio.channels.AsynchronousFileChannel;
-import java.nio.channels.CompletionHandler;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -34,9 +30,29 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+
+class Segment {
+    final String segmentName;
+    final byte[] cfeBytes;
+    final byte[] cfsBytes;
+    final byte[] siBytes;
+    final byte[] segmentsBytes;
+
+    Segment(String segmentName, byte[] cfeBytes, byte[] cfsBytes, byte[] siBytes, byte[] segmentsBytes) {
+        this.segmentName = segmentName;
+        this.cfeBytes = cfeBytes;
+        this.cfsBytes = cfsBytes;
+        this.siBytes = siBytes;
+        this.segmentsBytes = segmentsBytes;
+    }
+}
+
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -102,6 +118,7 @@ public class SingleIndexSearcher {
             for (String splitKey : splitKeys) {
                 futures.add(executor.submit(() -> {
                     String splitName = Paths.get(splitKey).getFileName().toString();
+                    Directory directory = null;
                     try (InputStream inputStream = s3IndexDownloader.downloadFile(splitKey, bucketName)) {
 
                         // Output dir,
@@ -114,17 +131,21 @@ public class SingleIndexSearcher {
                         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_FROM_S3, Duration.between(readSplitFromS3Start, Instant.now()).toMillis(), queryId);
 
                         // Process
-                        Instant readSplitAndWriteLuceneSegmentStart = Instant.now();
-                        readSplitAndWriteLuceneSegmentV2(outputDirectory, splitBytes, splitName);
-                        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_AND_WRITE_LUCENE_SEGMENT, Duration.between(readSplitAndWriteLuceneSegmentStart, Instant.now()).toMillis(), queryId);
+                        Instant readSplitStart = Instant.now();
+                        directory = readSplit(splitBytes, splitName);
+                        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_AND_CREATE_RAM_DIRECTORY, Duration.between(readSplitStart, Instant.now()).toMillis(), queryId);
 
                         System.out.println("Processed (not written) " + splitName + " in thread: " + Thread.currentThread());
-                        return searchSingleSplit(query, queryId, outputDirectory);
+                        return searchSingleSplit(directory, query, queryId, outputDirectory);
                     } catch (NoSuchKeyException e) {
                         System.err.println("split not found: " + splitKey);
                         return null;
                     } catch (IOException e) {
                         throw new UncheckedIOException("Error handling file: " + splitName, e);
+                    } finally {
+                        if (directory != null) {
+                            directory.close();
+                        }
                     }
                 }));
             }
@@ -169,6 +190,25 @@ public class SingleIndexSearcher {
             metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_SPLIT, Duration.between(start, Instant.now()).toMillis(), queryId);
             return searchResult;
         }
+    }
+
+    private SearchResult searchSingleSplit(Directory directory, Query query, String queryId, Path outputDirectory) throws IOException {
+        // search
+        Instant start = Instant.now();
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.CREATE_MEMORY_MAPPED_DIRECTORY, Duration.between(start, Instant.now()).toMillis(), queryId);
+
+        // Verify the index by searching
+        Instant createSearcherStart = Instant.now();
+        DirectoryReader reader = DirectoryReader.open(directory);
+        org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.CREATE_SEARCHER, Duration.between(createSearcherStart, Instant.now()).toMillis(), queryId);
+
+        Instant readResultStart = Instant.now();
+        SearchResult searchResult = readResults(searcher, query);
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_RESULTS, Duration.between(readResultStart, Instant.now()).toMillis(), queryId);
+
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_SPLIT, Duration.between(start, Instant.now()).toMillis(), queryId);
+        return searchResult;
     }
 
     void readSplitAndWriteLuceneSegment(Path outputDirectory, byte[] splitBytes, String splitName) throws IOException {
@@ -237,6 +277,47 @@ public class SingleIndexSearcher {
         } finally {
             this.scratchBufferPool.release(scratch);
         }
+    }
+
+    ByteBuffersDirectory readSplit(byte[] splitBytes, String splitName) throws IOException {
+        String segmentName = splitName.substring("split".length());
+        ScratchBuffer scratch = this.scratchBufferPool.acquire();
+
+        ByteBuffersDirectory directory = new ByteBuffersDirectory();
+        try (DataInputStream in = new DataInputStream(new FastByteArrayInputStream(splitBytes))) {
+            int cfeLen = in.readInt();
+            scratch.cfe = scratch.ensureCapacity(scratch.cfe, cfeLen);
+            in.readFully(scratch.cfe, 0, cfeLen);
+            try (IndexOutput output = directory.createOutput(segmentName + ".cfe", IOContext.DEFAULT)) {
+                output.writeBytes(scratch.cfe, 0, cfeLen);
+            }
+
+            int cfsLen = in.readInt();
+            scratch.cfs = scratch.ensureCapacity(scratch.cfs, cfsLen);
+            in.readFully(scratch.cfs, 0, cfsLen);
+            try (IndexOutput output = directory.createOutput(segmentName + ".cfs", IOContext.DEFAULT)) {
+                output.writeBytes(scratch.cfs, 0, cfsLen);
+            }
+
+            int siLen = in.readInt();
+            scratch.si = scratch.ensureCapacity(scratch.si, siLen);
+            in.readFully(scratch.si, 0, siLen);
+            try (IndexOutput output = directory.createOutput(segmentName + ".si", IOContext.DEFAULT)) {
+                output.writeBytes(scratch.si, 0, siLen);
+            }
+
+            long generation = in.readLong();
+
+            int segLen = in.readInt();
+            scratch.segments = scratch.ensureCapacity(scratch.segments, segLen);
+            in.readFully(scratch.segments, 0, segLen);
+            try (IndexOutput output = directory.createOutput("segments_" + generation, IOContext.DEFAULT)) {
+                output.writeBytes(scratch.segments, 0, segLen);
+            }
+        } finally {
+            this.scratchBufferPool.release(scratch);
+        }
+        return directory;
     }
 
     private void deleteTempDirectory(File directory) {
