@@ -101,6 +101,7 @@ public class MultipleIndexSearcherWithSplitsIntegrationTests {
         String[] indexPaths = {s3SplitPath};
         String queryId = "query-1";
         String subQueryId = "sub-query-1";
+
         searcher.searchV2("Historical", queryId, indexPaths, subQueryId);
 
         URI s3Uri = URI.create(s3OutputPath + "/" + queryId);

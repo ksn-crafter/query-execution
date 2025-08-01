@@ -118,7 +118,7 @@ public class SingleIndexSearcher {
 
                         // Process
                         Instant readSplitStart = Instant.now();
-                        directory = readSplit(splitBytes, splitName);
+                        directory = readSplitV2(splitBytes, splitName);
                         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_AND_CREATE_RAM_DIRECTORY, Duration.between(readSplitStart, Instant.now()).toMillis(), queryId);
 
                         System.out.println("Processed (not written) " + splitName + " in thread: " + Thread.currentThread());
@@ -304,6 +304,67 @@ public class SingleIndexSearcher {
             this.scratchBufferPool.release(scratch);
         }
         return directory;
+    }
+
+    ByteBuffersDirectory readSplitV2(byte[] splitBytes, String splitName) throws IOException {
+        String segmentName = splitName.substring("split".length());
+        ByteBuffersDirectory directory = new ByteBuffersDirectory();
+
+        int offset = 0;
+
+        // Read .cfe
+        int cfeLen = readInt(splitBytes, offset);
+        offset += 4;
+        try (IndexOutput output = directory.createOutput(segmentName + ".cfe", IOContext.DEFAULT)) {
+            output.writeBytes(splitBytes, offset, cfeLen);
+        }
+        offset += cfeLen;
+
+        // Read .cfs
+        int cfsLen = readInt(splitBytes, offset);
+        offset += 4;
+        try (IndexOutput output = directory.createOutput(segmentName + ".cfs", IOContext.DEFAULT)) {
+            output.writeBytes(splitBytes, offset, cfsLen);
+        }
+        offset += cfsLen;
+
+        // Read .si
+        int siLen = readInt(splitBytes, offset);
+        offset += 4;
+        try (IndexOutput output = directory.createOutput(segmentName + ".si", IOContext.DEFAULT)) {
+            output.writeBytes(splitBytes, offset, siLen);
+        }
+        offset += siLen;
+
+        // Read generation (long)
+        long generation = readLong(splitBytes, offset);
+        offset += 8;
+
+        // Read segments_N
+        int segLen = readInt(splitBytes, offset);
+        offset += 4;
+        try (IndexOutput output = directory.createOutput("segments_" + generation, IOContext.DEFAULT)) {
+            output.writeBytes(splitBytes, offset, segLen);
+        }
+        return directory;
+    }
+
+    private static int readInt(byte[] arr, int offset) {
+        return ((arr[offset] & 0xFF) << 24) |
+                ((arr[offset + 1] & 0xFF) << 16) |
+                ((arr[offset + 2] & 0xFF) << 8) |
+                (arr[offset + 3] & 0xFF);
+    }
+
+    private static long readLong(byte[] arr, int offset) {
+        return ((long)(arr[offset] & 0xFF) << 56) |
+                ((long)(arr[offset + 1] & 0xFF) << 48) |
+                ((long)(arr[offset + 2] & 0xFF) << 40) |
+                ((long)(arr[offset + 3] & 0xFF) << 32) |
+                ((long)(arr[offset + 4] & 0xFF) << 24) |
+                ((long)(arr[offset + 5] & 0xFF) << 16) |
+                ((long)(arr[offset + 6] & 0xFF) << 8) |
+                ((long)(arr[offset + 7] & 0xFF));
     }
 
     private void deleteTempDirectory(File directory) {
