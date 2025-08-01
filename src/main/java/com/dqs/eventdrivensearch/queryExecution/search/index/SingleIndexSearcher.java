@@ -40,15 +40,20 @@ import java.util.zip.ZipInputStream;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-class SingleIndexSearcher {
+public class SingleIndexSearcher {
     private final S3IndexDownloader s3IndexDownloader;
     private final S3SearchResultWriter resultWriter;
     private final MetricsPublisher metricsPublisher;
+    private final ScratchBufferPool scratchBufferPool;
 
-    public SingleIndexSearcher(MetricsPublisher metricsPublisher, S3IndexDownloader s3IndexDownloader, S3SearchResultWriter writer) {
+    public SingleIndexSearcher(MetricsPublisher metricsPublisher,
+                               S3IndexDownloader s3IndexDownloader,
+                               S3SearchResultWriter writer,
+                               ScratchBufferPool scratchBufferPool) {
         this.metricsPublisher = metricsPublisher;
         this.s3IndexDownloader = s3IndexDownloader;
         this.resultWriter = writer;
+        this.scratchBufferPool = scratchBufferPool;
     }
 
     private static final String[] splitKeys = {"dqs-indexes/jpmc/splits_9_12/split_0", "dqs-indexes/jpmc/splits_9_12/split_1", "dqs-indexes/jpmc/splits_9_12/split_2", "dqs-indexes/jpmc/splits_9_12/split_3", "dqs-indexes/jpmc/splits_9_12/split_4", "dqs-indexes/jpmc/splits_9_12/split_5"};
@@ -110,9 +115,8 @@ class SingleIndexSearcher {
 
                         // Process
                         Instant readSplitAndWriteLuceneSegmentStart = Instant.now();
-                        readSplitAndWriteLuceneSegment(outputDirectory, splitBytes, splitName);
+                        readSplitAndWriteLuceneSegmentV2(outputDirectory, splitBytes, splitName);
                         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_AND_WRITE_LUCENE_SEGMENT, Duration.between(readSplitAndWriteLuceneSegmentStart, Instant.now()).toMillis(), queryId);
-
 
                         System.out.println("Processed (not written) " + splitName + " in thread: " + Thread.currentThread());
                         return searchSingleSplit(query, queryId, outputDirectory);
@@ -158,7 +162,6 @@ class SingleIndexSearcher {
             org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
             metricsPublisher.putMetricData(MetricsPublisher.MetricNames.CREATE_SEARCHER, Duration.between(createSearcherStart, Instant.now()).toMillis(), queryId);
 
-
             Instant readResultStart = Instant.now();
             SearchResult searchResult = readResults(searcher, query);
             metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_RESULTS, Duration.between(readResultStart, Instant.now()).toMillis(), queryId);
@@ -168,8 +171,7 @@ class SingleIndexSearcher {
         }
     }
 
-    private void readSplitAndWriteLuceneSegment(Path outputDirectory, byte[] splitBytes, String splitName) throws IOException {
-
+    void readSplitAndWriteLuceneSegment(Path outputDirectory, byte[] splitBytes, String splitName) throws IOException {
         String segmentName = splitName.substring("split".length());
 
         try (DataInputStream in = new DataInputStream(new FastByteArrayInputStream(splitBytes))) {
@@ -195,7 +197,46 @@ class SingleIndexSearcher {
             in.readFully(segmentsBytes);
             Files.write(outputDirectory.resolve("segments_" + generation), segmentsBytes, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         }
+    }
 
+    void readSplitAndWriteLuceneSegmentV2(Path outputDirectory, byte[] splitBytes, String splitName) throws IOException {
+        String segmentName = splitName.substring("split".length());
+        ScratchBuffer scratch = this.scratchBufferPool.acquire();
+
+        try (DataInputStream in = new DataInputStream(new FastByteArrayInputStream(splitBytes))) {
+            int cfeLen = in.readInt();
+            scratch.cfe = scratch.ensureCapacity(scratch.cfe, cfeLen);
+            in.readFully(scratch.cfe, 0, cfeLen);
+            try (OutputStream out = Files.newOutputStream(outputDirectory.resolve(segmentName + ".cfe"))) {
+                out.write(scratch.cfe, 0, cfeLen);
+            }
+
+            int cfsLen = in.readInt();
+            scratch.cfs = scratch.ensureCapacity(scratch.cfs, cfsLen);
+            in.readFully(scratch.cfs, 0, cfsLen);
+            try (OutputStream out = new BufferedOutputStream(
+                    Files.newOutputStream(outputDirectory.resolve(segmentName + ".cfs")))) {
+                out.write(scratch.cfs, 0, cfsLen);
+            }
+
+            int siLen = in.readInt();
+            scratch.si = scratch.ensureCapacity(scratch.si, siLen);
+            in.readFully(scratch.si, 0, siLen);
+            try (OutputStream out = Files.newOutputStream(outputDirectory.resolve(segmentName + ".si"))) {
+                out.write(scratch.si, 0, siLen);
+            }
+
+            long generation = in.readLong();
+
+            int segLen = in.readInt();
+            scratch.segments = scratch.ensureCapacity(scratch.segments, segLen);
+            in.readFully(scratch.segments, 0, segLen);
+            try (OutputStream out = Files.newOutputStream(outputDirectory.resolve("segments_" + generation))) {
+                out.write(scratch.segments, 0, segLen);
+            }
+        } finally {
+            this.scratchBufferPool.release(scratch);
+        }
     }
 
     private void deleteTempDirectory(File directory) {

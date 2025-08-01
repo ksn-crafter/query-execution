@@ -7,9 +7,11 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
@@ -26,12 +28,12 @@ public class S3IndexDownloader {
 
     private MetricsPublisher metricsPublisher;
 
-    public S3IndexDownloader(S3Client s3Client,MetricsPublisher metricsPublisher){
+    public S3IndexDownloader(S3Client s3Client, MetricsPublisher metricsPublisher) {
         this.s3Client = s3Client;
         this.metricsPublisher = metricsPublisher;
     }
 
-    public InputStream getInputStream(String filePath,String queryId) {
+    public InputStream getInputStream(String filePath, String queryId) {
         InputStream inputStream = null;
         Instant start = Instant.now();
 
@@ -51,7 +53,7 @@ public class S3IndexDownloader {
             throw new RuntimeException(e);
         }
 
-        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(),queryId);
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
         return inputStream;
     }
 
