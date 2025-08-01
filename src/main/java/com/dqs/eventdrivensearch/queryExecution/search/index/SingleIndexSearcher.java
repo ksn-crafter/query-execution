@@ -214,8 +214,8 @@ public class SingleIndexSearcher {
             int cfsLen = in.readInt();
             scratch.cfs = scratch.ensureCapacity(scratch.cfs, cfsLen);
             in.readFully(scratch.cfs, 0, cfsLen);
-            try (OutputStream out = new BufferedOutputStream(
-                    Files.newOutputStream(outputDirectory.resolve(segmentName + ".cfs")))) {
+            try (OutputStream out =
+                    Files.newOutputStream(outputDirectory.resolve(segmentName + ".cfs"))) {
                 out.write(scratch.cfs, 0, cfsLen);
             }
 
