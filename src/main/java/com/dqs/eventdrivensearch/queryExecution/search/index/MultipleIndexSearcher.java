@@ -34,13 +34,9 @@ public class MultipleIndexSearcher {
 
     private final List<S3SearchResultWriter> s3SearchResultWriters;
 
-    public MultipleIndexSearcher(ApplicationContext context,
-                                 MetricsPublisher metricsPublisher,
-                                 @Value("${single_index_searcher_count}")
-                                 int singleIndexSearcherCount,
-                                 @Value("${output_folder_path}")
-                                 String outputFolderPath
-    ) {
+    private final ExecutorService executorService;
+
+    public MultipleIndexSearcher(ApplicationContext context, MetricsPublisher metricsPublisher, @Value("${single_index_searcher_count}") int singleIndexSearcherCount, @Value("${output_folder_path}") String outputFolderPath) {
 
         singleIndexSearchers = new ArrayList<>();
         s3SearchResultWriters = new ArrayList<>();
@@ -51,6 +47,8 @@ public class MultipleIndexSearcher {
         }
         this.metricsPublisher = metricsPublisher;
         this.outputFolderPath = outputFolderPath;
+
+        executorService = Executors.newWorkStealingPool(Runtime.getRuntime().availableProcessors() - 1);
     }
 
     private static final Logger logger = Logger.getLogger(MultipleIndexSearcher.class.getName());
@@ -62,9 +60,7 @@ public class MultipleIndexSearcher {
         final ExecutorService executorService = Executors.newWorkStealingPool(totalAvailableCores);
 
         try {
-            final String queryResultLocation = outputFolderPath.endsWith("/")
-                    ? outputFolderPath + queryId
-                    : outputFolderPath + "/" + queryId;
+            final String queryResultLocation = outputFolderPath.endsWith("/") ? outputFolderPath + queryId : outputFolderPath + "/" + queryId;
             for (int idx = 0; idx < filePaths.length; idx++) {
                 SingleIndexSearcher singleIndexSearcher = singleIndexSearchers.get(idx);
                 String filePath = filePaths[idx];
@@ -98,26 +94,29 @@ public class MultipleIndexSearcher {
 
     public void searchV2(String searchQueryString, String queryId, String[] indexPaths, String subQueryId) throws ParseException {
         Instant start = Instant.now();
-
+        List<Future> searchTasks = new ArrayList<>();
         try {
-            final String queryResultLocation = outputFolderPath.endsWith("/")
-                    ? outputFolderPath + queryId
-                    : outputFolderPath + "/" + queryId;
+            final String queryResultLocation = outputFolderPath.endsWith("/") ? outputFolderPath + queryId : outputFolderPath + "/" + queryId;
 
-            //TODO: run these indexes in a threadpool
             for (int idx = 0; idx < indexPaths.length; idx++) {
                 SingleIndexSearcher singleIndexSearcher = singleIndexSearchers.get(idx);
                 String indexPath = indexPaths[idx];
                 S3SearchResultWriter s3SearchResultWriter = s3SearchResultWriters.get(idx);
                 var query = singleIndexSearcher.getQuery(searchQueryString, new StandardAnalyzer());
 
-                try {
-                    searchOnSplits(queryResultLocation, indexPath, singleIndexSearcher, query, queryId, s3SearchResultWriter);
-                } catch (IOException | ParseException e) {
-                    System.out.printf("SearchV2 for split path %s has failed. The query id is %s and sub query id is %s%n", indexPath, queryId, subQueryId);
-                    logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "indexPath: " + indexPath);
-                    throw new RuntimeException(e);
-                }
+                var task = executorService.submit(() -> {
+                    try {
+                        searchOnSplits(queryResultLocation, indexPath, singleIndexSearcher, query, queryId, s3SearchResultWriter);
+                    } catch (IOException | ParseException e) {
+                        System.out.printf("SearchV2 for split path %s has failed. The query id is %s and sub query id is %s%n", indexPath, queryId, subQueryId);
+                        logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "indexPath: " + indexPath);
+                    }
+                });
+                searchTasks.add(task);
+            }
+
+            for (Future task : searchTasks) {
+                while (!task.isDone()) ;
             }
         } catch (Exception e) {
 //            System.out.println(e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()));
