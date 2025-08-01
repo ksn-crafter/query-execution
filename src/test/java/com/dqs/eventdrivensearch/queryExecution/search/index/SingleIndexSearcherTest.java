@@ -56,11 +56,6 @@ public class SingleIndexSearcherTest {
         singleIndexSearcherWithPool.readSplitAndWriteLuceneSegmentV2(outputPathWithPool, splitFileBytes, "split_0");
     }
 
-    @Benchmark
-    public void runV3(Blackhole blackhole) throws IOException {
-        singleIndexSearcherWithPool.readSplitAndWriteLuceneSegmentV3(outputPathWithPool, splitFileBytes, "split_0");
-    }
-
     private void deleteDirectory(File directory) {
         if (directory == null || !directory.exists()) return;
 
