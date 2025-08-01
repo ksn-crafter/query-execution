@@ -4,6 +4,7 @@ import com.dqs.eventdrivensearch.queryExecution.search.io.S3IndexDownloader;
 import com.dqs.eventdrivensearch.queryExecution.search.io.S3SearchResultWriter;
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
+import jakarta.annotation.PreDestroy;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
@@ -37,23 +38,6 @@ import java.util.concurrent.Future;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-class Segment {
-    final String segmentName;
-    final byte[] cfeBytes;
-    final byte[] cfsBytes;
-    final byte[] siBytes;
-    final byte[] segmentsBytes;
-
-    Segment(String segmentName, byte[] cfeBytes, byte[] cfsBytes, byte[] siBytes, byte[] segmentsBytes) {
-        this.segmentName = segmentName;
-        this.cfeBytes = cfeBytes;
-        this.cfsBytes = cfsBytes;
-        this.siBytes = siBytes;
-        this.segmentsBytes = segmentsBytes;
-    }
-}
-
-
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class SingleIndexSearcher {
@@ -61,6 +45,7 @@ public class SingleIndexSearcher {
     private final S3SearchResultWriter resultWriter;
     private final MetricsPublisher metricsPublisher;
     private final ScratchBufferPool scratchBufferPool;
+    private final ExecutorService executor;
 
     public SingleIndexSearcher(MetricsPublisher metricsPublisher,
                                S3IndexDownloader s3IndexDownloader,
@@ -70,6 +55,7 @@ public class SingleIndexSearcher {
         this.s3IndexDownloader = s3IndexDownloader;
         this.resultWriter = writer;
         this.scratchBufferPool = scratchBufferPool;
+        this.executor = Executors.newVirtualThreadPerTaskExecutor();
     }
 
     private static final String[] splitKeys = {"dqs-indexes/jpmc/splits_9_12/split_0", "dqs-indexes/jpmc/splits_9_12/split_1", "dqs-indexes/jpmc/splits_9_12/split_2", "dqs-indexes/jpmc/splits_9_12/split_3", "dqs-indexes/jpmc/splits_9_12/split_4", "dqs-indexes/jpmc/splits_9_12/split_5"};
@@ -113,10 +99,10 @@ public class SingleIndexSearcher {
         String bucketName = url.getHost().split("\\.")[0];
 
         //TODO: Remove executor and use VirtualThread directly
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try {
             List<Future<SearchResult>> futures = new ArrayList<>(splitKeys.length);
             for (String splitKey : splitKeys) {
-                futures.add(executor.submit(() -> {
+                futures.add(this.executor.submit(() -> {
                     String splitName = Paths.get(splitKey).getFileName().toString();
                     Directory directory = null;
                     try (InputStream inputStream = s3IndexDownloader.downloadFile(splitKey, bucketName)) {
@@ -428,5 +414,10 @@ public class SingleIndexSearcher {
     Query getQuery(String queryString, StandardAnalyzer analyzer) throws ParseException {
         MultiFieldQueryParser parser = new MultiFieldQueryParser(DOCUMENT_FIELDS, analyzer);
         return parser.parse(queryString);
+    }
+
+    @PreDestroy
+    public void clean() {
+        this.executor.shutdown();
     }
 }
