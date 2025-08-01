@@ -22,6 +22,9 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 import java.io.*;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousFileChannel;
+import java.nio.channels.CompletionHandler;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,10 +34,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -115,7 +115,7 @@ public class SingleIndexSearcher {
 
                         // Process
                         Instant readSplitAndWriteLuceneSegmentStart = Instant.now();
-                        readSplitAndWriteLuceneSegmentV2(outputDirectory, splitBytes, splitName);
+                        readSplitAndWriteLuceneSegmentV3(outputDirectory, splitBytes, splitName);
                         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_AND_WRITE_LUCENE_SEGMENT, Duration.between(readSplitAndWriteLuceneSegmentStart, Instant.now()).toMillis(), queryId);
 
                         System.out.println("Processed (not written) " + splitName + " in thread: " + Thread.currentThread());
@@ -215,7 +215,7 @@ public class SingleIndexSearcher {
             scratch.cfs = scratch.ensureCapacity(scratch.cfs, cfsLen);
             in.readFully(scratch.cfs, 0, cfsLen);
             try (OutputStream out =
-                    Files.newOutputStream(outputDirectory.resolve(segmentName + ".cfs"))) {
+                         Files.newOutputStream(outputDirectory.resolve(segmentName + ".cfs"))) {
                 out.write(scratch.cfs, 0, cfsLen);
             }
 
@@ -236,6 +236,81 @@ public class SingleIndexSearcher {
             }
         } finally {
             this.scratchBufferPool.release(scratch);
+        }
+    }
+
+    void readSplitAndWriteLuceneSegmentV3(Path outputDirectory, byte[] splitBytes, String splitName) throws IOException {
+        String segmentName = splitName.substring("split".length());
+        ScratchBuffer scratch = this.scratchBufferPool.acquire();
+
+        try (DataInputStream in = new DataInputStream(new FastByteArrayInputStream(splitBytes))) {
+            int cfeLen = in.readInt();
+            scratch.cfe = scratch.ensureCapacity(scratch.cfe, cfeLen);
+            in.readFully(scratch.cfe, 0, cfeLen);
+
+            int cfsLen = in.readInt();
+            scratch.cfs = scratch.ensureCapacity(scratch.cfs, cfsLen);
+            in.readFully(scratch.cfs, 0, cfsLen);
+
+            int siLen = in.readInt();
+            scratch.si = scratch.ensureCapacity(scratch.si, siLen);
+            in.readFully(scratch.si, 0, siLen);
+
+            long generation = in.readLong();
+
+            int segLen = in.readInt();
+            scratch.segments = scratch.ensureCapacity(scratch.segments, segLen);
+            in.readFully(scratch.segments, 0, segLen);
+
+            // non-blocking writes
+            CompletableFuture<Void> cfeFuture = writeAsync(outputDirectory.resolve(segmentName + ".cfe"), scratch.cfe, cfeLen);
+            CompletableFuture<Void> cfsFuture = writeAsync(outputDirectory.resolve(segmentName + ".cfs"), scratch.cfs, cfsLen);
+            CompletableFuture<Void> siFuture = writeAsync(outputDirectory.resolve(segmentName + ".si"), scratch.si, siLen);
+            CompletableFuture<Void> segFuture = writeAsync(outputDirectory.resolve("segments_" + generation), scratch.segments, segLen);
+
+            // Wait for all writes to finish
+            CompletableFuture.allOf(cfeFuture, cfsFuture, siFuture, segFuture).join();
+        } finally {
+            this.scratchBufferPool.release(scratch);
+        }
+    }
+
+    private CompletableFuture<Void> writeAsync(Path path, byte[] bytes, int bufferLength) throws IOException {
+        ByteBuffer buffer = ByteBuffer.wrap(bytes, 0, bufferLength);
+        try {
+            AsynchronousFileChannel channel = AsynchronousFileChannel.open(
+                    path,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING
+            );
+
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            channel.write(buffer, 0, null, new CompletionHandler<>() {
+                @Override
+                public void completed(Integer result, Object attachment) {
+                    try {
+                        channel.close();
+                        future.complete(null);
+                    } catch (IOException e) {
+                        future.completeExceptionally(e);
+                    }
+                }
+
+                @Override
+                public void failed(Throwable exc, Object attachment) {
+                    try {
+                        channel.close();
+                    } catch (IOException ignored) {
+                    }
+                    future.completeExceptionally(exc);
+                }
+            });
+            return future;
+        } catch (IOException e) {
+            CompletableFuture<Void> failed = new CompletableFuture<>();
+            failed.completeExceptionally(e);
+            return failed;
         }
     }
 
