@@ -22,6 +22,8 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 import java.io.*;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -118,20 +120,22 @@ public class SingleIndexSearcher {
 
                         // Process
                         Instant readSplitStart = Instant.now();
-                        directory = readSplitV2(splitBytes, splitName);
+                        //directory = readSplitV2(splitBytes, splitName);
+                        readSplitAndWriteLuceneSegmentV3(outputDirectory, splitBytes, splitName);
                         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_AND_CREATE_RAM_DIRECTORY, Duration.between(readSplitStart, Instant.now()).toMillis(), queryId);
 
                         System.out.println("Processed (not written) " + splitName + " in thread: " + Thread.currentThread());
-                        return searchSingleSplit(directory, query, queryId, outputDirectory);
+                        return searchSingleSplit(query, queryId, outputDirectory);
+                        //return searchSingleSplit(directory, query, queryId, outputDirectory);
                     } catch (NoSuchKeyException e) {
                         System.err.println("split not found: " + splitKey);
                         return null;
                     } catch (IOException e) {
                         throw new UncheckedIOException("Error handling file: " + splitName, e);
                     } finally {
-                        if (directory != null) {
-                            directory.close();
-                        }
+//                        if (directory != null) {
+//                            directory.close();
+//                        }
                     }
                 }));
             }
@@ -265,6 +269,81 @@ public class SingleIndexSearcher {
         }
     }
 
+    void readSplitAndWriteLuceneSegmentV3(Path outputDirectory, byte[] splitBytes, String splitName) throws IOException {
+        String segmentName = splitName.substring("split".length());
+
+        // Parse all metadata first
+        int offset = 0;
+        int cfeLen = readInt(splitBytes, offset);
+        offset += 4;
+        int cfeOffset = offset;
+        offset += cfeLen;
+
+        int cfsLen = readInt(splitBytes, offset);
+        offset += 4;
+        int cfsOffset = offset;
+        offset += cfsLen;
+
+        int siLen = readInt(splitBytes, offset);
+        offset += 4;
+        int siOffset = offset;
+        offset += siLen;
+
+        long generation = readLong(splitBytes, offset);
+        offset += 8;
+        int segLen = readInt(splitBytes, offset);
+        offset += 4;
+        int segOffset = offset;
+
+        // Create virtual threads
+        Thread cfeThread = Thread.ofVirtual().start(() -> {
+            try {
+                writeFileSlice(outputDirectory.resolve(segmentName + ".cfe"), splitBytes, cfeOffset, cfeLen);
+            } catch (IOException e) { throw new RuntimeException(e); }
+        });
+
+        Thread cfsThread = Thread.ofVirtual().start(() -> {
+            try {
+                writeFileSlice(outputDirectory.resolve(segmentName + ".cfs"), splitBytes, cfsOffset, cfsLen);
+            } catch (IOException e) { throw new RuntimeException(e); }
+        });
+
+        Thread siThread = Thread.ofVirtual().start(() -> {
+            try {
+                writeFileSlice(outputDirectory.resolve(segmentName + ".si"), splitBytes, siOffset, siLen);
+            } catch (IOException e) { throw new RuntimeException(e); }
+        });
+
+        Thread segmentsThread = Thread.ofVirtual().start(() -> {
+            try {
+                writeFileSlice(outputDirectory.resolve("segments_" + generation), splitBytes, segOffset, segLen);
+            } catch (IOException e) { throw new RuntimeException(e); }
+        });
+
+        // Wait for all to complete
+        try {
+            cfeThread.join();
+            cfsThread.join();
+            siThread.join();
+            segmentsThread.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while writing files", e);
+        }
+    }
+
+    private void writeFileSlice(Path path, byte[] data, int offset, int length) throws IOException {
+        try (FileChannel channel = FileChannel.open(path,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.TRUNCATE_EXISTING)) {
+            ByteBuffer buffer = ByteBuffer.wrap(data, offset, length);
+            while (buffer.hasRemaining()) {
+                channel.write(buffer);
+            }
+        }
+    }
+
     ByteBuffersDirectory readSplit(byte[] splitBytes, String splitName) throws IOException {
         String segmentName = splitName.substring("split".length());
         ScratchBuffer scratch = this.scratchBufferPool.acquire();
@@ -357,14 +436,14 @@ public class SingleIndexSearcher {
     }
 
     private static long readLong(byte[] arr, int offset) {
-        return ((long)(arr[offset] & 0xFF) << 56) |
-                ((long)(arr[offset + 1] & 0xFF) << 48) |
-                ((long)(arr[offset + 2] & 0xFF) << 40) |
-                ((long)(arr[offset + 3] & 0xFF) << 32) |
-                ((long)(arr[offset + 4] & 0xFF) << 24) |
-                ((long)(arr[offset + 5] & 0xFF) << 16) |
-                ((long)(arr[offset + 6] & 0xFF) << 8) |
-                ((long)(arr[offset + 7] & 0xFF));
+        return ((long) (arr[offset] & 0xFF) << 56) |
+                ((long) (arr[offset + 1] & 0xFF) << 48) |
+                ((long) (arr[offset + 2] & 0xFF) << 40) |
+                ((long) (arr[offset + 3] & 0xFF) << 32) |
+                ((long) (arr[offset + 4] & 0xFF) << 24) |
+                ((long) (arr[offset + 5] & 0xFF) << 16) |
+                ((long) (arr[offset + 6] & 0xFF) << 8) |
+                ((long) (arr[offset + 7] & 0xFF));
     }
 
     private void deleteTempDirectory(File directory) {
