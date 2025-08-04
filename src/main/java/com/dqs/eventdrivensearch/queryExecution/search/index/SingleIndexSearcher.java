@@ -87,7 +87,7 @@ public class SingleIndexSearcher {
         Path targetTempDirectory = null;
         try {
             targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
-            downloadAndSearchOnSplits(splitPath, targetTempDirectory, query, queryId, queryResultLocation);
+            downloadAndSearchOnSplitsV2(splitPath, targetTempDirectory, query, queryId, queryResultLocation);
         } finally {
             if (targetTempDirectory != null) {
                 deleteDirectory(targetTempDirectory.toFile());
@@ -138,6 +138,63 @@ public class SingleIndexSearcher {
 //                        }
                     }
                 }));
+            }
+
+            final SearchResult finalResult = futures.getFirst().get();
+
+            // Wait for all tasks and merge the result in finalResult.
+            for (int index = 1; index < futures.size(); index++) {
+                SearchResult searchResult = futures.get(index).get();
+                finalResult.mergeFrom(searchResult);
+            }
+
+            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.FINAL_RESULT_GENERATION_FOR_SINGLE_SPLIT, Duration.between(start, Instant.now()).toMillis(), queryId);
+
+            // Avoid using executor, run a virtual thread to write the final result.
+            Thread.ofVirtual().start(() -> {
+                Instant writeStart = Instant.now();
+                resultWriter.write(finalResult, queryResultLocation, indexPath, queryId);
+                metricsPublisher.putMetricData(MetricsPublisher.MetricNames.WRITE_RESULT_TO_S3_FOR_SINGLE_INDEX, Duration.between(writeStart, Instant.now()).toMillis(), queryId);
+            }).join();
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException("Error in VT processing", e.getCause());
+        }
+    }
+
+    private void downloadAndSearchOnSplitsV2(String indexPath, Path tempDir, Query query, String queryId, String queryResultLocation) throws IOException {
+        Instant start = Instant.now();
+        URL url = new URL(indexPath);
+        String bucketName = url.getHost().split("\\.")[0];
+
+        //TODO: Remove executor and use VirtualThread directly
+        try {
+            List<Future<SearchResult>> futures = new ArrayList<>(splitKeys.length);
+            for (String splitKey : splitKeys) {
+                String splitName = Paths.get(splitKey).getFileName().toString();
+                try (InputStream inputStream = s3IndexDownloader.downloadFile(splitKey, bucketName)) {
+
+                    // Output dir,
+                    //TODO: maybe leverage RAM directory on linux/mac
+                    Path outputDirectory = tempDir.resolve(splitName + "_dir");
+                    Files.createDirectories(outputDirectory);
+
+                    Instant readSplitFromS3Start = Instant.now();
+                    byte[] splitBytes = inputStream.readAllBytes();
+                    metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_FROM_S3, Duration.between(readSplitFromS3Start, Instant.now()).toMillis(), queryId);
+
+                    // Process
+                    Instant readSplitStart = Instant.now();
+                    //directory = readSplitV2(splitBytes, splitName);
+                    readSplitAndWriteLuceneSegmentV2(outputDirectory, splitBytes, splitName);
+                    metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_AND_CREATE_RAM_DIRECTORY, Duration.between(readSplitStart, Instant.now()).toMillis(), queryId);
+
+                    System.out.println("Processed (not written) " + splitName + " in thread: " + Thread.currentThread());
+                    futures.add(this.executor.submit(() -> searchSingleSplit(query, queryId, outputDirectory)));
+                } catch (NoSuchKeyException e) {
+                    System.err.println("split not found: " + splitKey);
+                } catch (IOException e) {
+                    throw new UncheckedIOException("Error handling file: " + splitName, e);
+                }
             }
 
             final SearchResult finalResult = futures.getFirst().get();
@@ -299,25 +356,33 @@ public class SingleIndexSearcher {
         Thread cfeThread = Thread.ofVirtual().start(() -> {
             try {
                 writeFileSlice(outputDirectory.resolve(segmentName + ".cfe"), splitBytes, cfeOffset, cfeLen);
-            } catch (IOException e) { throw new RuntimeException(e); }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         });
 
         Thread cfsThread = Thread.ofVirtual().start(() -> {
             try {
                 writeFileSlice(outputDirectory.resolve(segmentName + ".cfs"), splitBytes, cfsOffset, cfsLen);
-            } catch (IOException e) { throw new RuntimeException(e); }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         });
 
         Thread siThread = Thread.ofVirtual().start(() -> {
             try {
                 writeFileSlice(outputDirectory.resolve(segmentName + ".si"), splitBytes, siOffset, siLen);
-            } catch (IOException e) { throw new RuntimeException(e); }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         });
 
         Thread segmentsThread = Thread.ofVirtual().start(() -> {
             try {
                 writeFileSlice(outputDirectory.resolve("segments_" + generation), splitBytes, segOffset, segLen);
-            } catch (IOException e) { throw new RuntimeException(e); }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         });
 
         // Wait for all to complete
