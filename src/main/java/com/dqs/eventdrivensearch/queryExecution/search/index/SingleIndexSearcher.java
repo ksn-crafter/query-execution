@@ -15,6 +15,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -48,19 +49,26 @@ public class SingleIndexSearcher {
     private final MetricsPublisher metricsPublisher;
     private final ScratchBufferPool scratchBufferPool;
     private final ExecutorService executor;
+    private final int OPTIMAL_STREAM_BUFFER_SIZE;
 
     public SingleIndexSearcher(MetricsPublisher metricsPublisher,
                                S3IndexDownloader s3IndexDownloader,
                                S3SearchResultWriter writer,
-                               ScratchBufferPool scratchBufferPool) {
+                               ScratchBufferPool scratchBufferPool,
+                               @Value("${optimal_stream_buffer_size}")
+                               int optimalStreamBufferSize
+                               ) {
         this.metricsPublisher = metricsPublisher;
         this.s3IndexDownloader = s3IndexDownloader;
         this.resultWriter = writer;
         this.scratchBufferPool = scratchBufferPool;
         this.executor = Executors.newVirtualThreadPerTaskExecutor();
+        this.OPTIMAL_STREAM_BUFFER_SIZE = optimalStreamBufferSize;
     }
 
     private static final String[] splitKeys = {"dqs-indexes/jpmc/splits_9_12/split_0", "dqs-indexes/jpmc/splits_9_12/split_1", "dqs-indexes/jpmc/splits_9_12/split_2", "dqs-indexes/jpmc/splits_9_12/split_3", "dqs-indexes/jpmc/splits_9_12/split_4", "dqs-indexes/jpmc/splits_9_12/split_5"};
+    private static final String[] splitNames = {"split_0", "split_1", "split_2", "split_3", "split_4", "split_5"};
+
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
     SearchResult search(String zipFilePath, Query query, String queryId) throws IOException {
@@ -87,7 +95,43 @@ public class SingleIndexSearcher {
         Path targetTempDirectory = null;
         try {
             targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
-            downloadAndSearchOnSplitsV2(splitPath, targetTempDirectory, query, queryId, queryResultLocation);
+            downloadAndSearchOnSplits(splitPath, targetTempDirectory, query, queryId, queryResultLocation);
+        } finally {
+            if (targetTempDirectory != null) {
+                deleteDirectory(targetTempDirectory.toFile());
+            }
+        }
+    }
+
+    void searchV3(String zipFilePath, Query query, String queryId, String queryResultLocation) throws IOException {
+        Instant start = Instant.now();
+        Path targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
+        try {
+            downloadZipAndUnzipInDirectory(zipFilePath, targetTempDirectory, queryId);
+
+            List<Future<SearchResult>> futures = new ArrayList<>();
+            for (String splitName : splitNames) {
+                Path outputDirectory = targetTempDirectory.resolve(splitName + "_dir");
+                futures.add(this.executor.submit(() -> searchSingleSplit(query, queryId, outputDirectory)));
+            }
+
+            final SearchResult finalResult = futures.getFirst().get();
+            // Wait for all tasks and merge the result in finalResult.
+            for (int index = 1; index < futures.size(); index++) {
+                SearchResult searchResult = futures.get(index).get();
+                finalResult.mergeFrom(searchResult);
+            }
+
+            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_UNZIP_AND_FINAL_RESULT_GENERATION_FOR_INDEX, Duration.between(start, Instant.now()).toMillis(), queryId);
+
+            Thread.ofVirtual().start(() -> {
+                Instant writeStart = Instant.now();
+                resultWriter.write(finalResult, queryResultLocation, zipFilePath, queryId);
+                metricsPublisher.putMetricData(MetricsPublisher.MetricNames.WRITE_RESULT_TO_S3_FOR_SINGLE_INDEX, Duration.between(writeStart, Instant.now()).toMillis(), queryId);
+            }).join();
+
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException("Error in VT processing", e.getCause());
         } finally {
             if (targetTempDirectory != null) {
                 deleteDirectory(targetTempDirectory.toFile());
@@ -96,7 +140,7 @@ public class SingleIndexSearcher {
     }
 
     private void downloadAndSearchOnSplits(String indexPath, Path tempDir, Query query, String queryId, String queryResultLocation) throws IOException {
-        Instant start = Instant.now();
+//        Instant start = Instant.now();
         URL url = new URL(indexPath);
         String bucketName = url.getHost().split("\\.")[0];
 
@@ -121,8 +165,8 @@ public class SingleIndexSearcher {
                         // Process
                         Instant readSplitStart = Instant.now();
                         //directory = readSplitV2(splitBytes, splitName);
-                        readSplitAndWriteLuceneSegmentV3(outputDirectory, splitBytes, splitName);
-                        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_AND_CREATE_RAM_DIRECTORY, Duration.between(readSplitStart, Instant.now()).toMillis(), queryId);
+                        readSplitAndWriteLuceneSegmentV2(outputDirectory, splitBytes, splitName);
+                        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_AND_WRITE_LUCENE_SEGMENT, Duration.between(readSplitStart, Instant.now()).toMillis(), queryId);
 
                         System.out.println("Processed (not written) " + splitName + " in thread: " + Thread.currentThread());
                         return searchSingleSplit(query, queryId, outputDirectory);
@@ -148,13 +192,13 @@ public class SingleIndexSearcher {
                 finalResult.mergeFrom(searchResult);
             }
 
-            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.FINAL_RESULT_GENERATION_FOR_SINGLE_SPLIT, Duration.between(start, Instant.now()).toMillis(), queryId);
+//            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.FINAL_RESULT_GENERATION_FOR_SINGLE_SPLIT, Duration.between(start, Instant.now()).toMillis(), queryId);
 
             // Avoid using executor, run a virtual thread to write the final result.
             Thread.ofVirtual().start(() -> {
-                Instant writeStart = Instant.now();
+//                Instant writeStart = Instant.now();
                 resultWriter.write(finalResult, queryResultLocation, indexPath, queryId);
-                metricsPublisher.putMetricData(MetricsPublisher.MetricNames.WRITE_RESULT_TO_S3_FOR_SINGLE_INDEX, Duration.between(writeStart, Instant.now()).toMillis(), queryId);
+//                metricsPublisher.putMetricData(MetricsPublisher.MetricNames.WRITE_RESULT_TO_S3_FOR_SINGLE_INDEX, Duration.between(writeStart, Instant.now()).toMillis(), queryId);
             }).join();
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException("Error in VT processing", e.getCause());
@@ -186,7 +230,7 @@ public class SingleIndexSearcher {
                     Instant readSplitStart = Instant.now();
                     //directory = readSplitV2(splitBytes, splitName);
                     readSplitAndWriteLuceneSegmentV2(outputDirectory, splitBytes, splitName);
-                    metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_AND_CREATE_RAM_DIRECTORY, Duration.between(readSplitStart, Instant.now()).toMillis(), queryId);
+                    metricsPublisher.putMetricData(MetricsPublisher.MetricNames.READ_SPLIT_AND_WRITE_LUCENE_SEGMENT, Duration.between(readSplitStart, Instant.now()).toMillis(), queryId);
 
                     System.out.println("Processed (not written) " + splitName + " in thread: " + Thread.currentThread());
                     futures.add(this.executor.submit(() -> searchSingleSplit(query, queryId, outputDirectory)));
@@ -222,13 +266,13 @@ public class SingleIndexSearcher {
         // search
         Instant start = Instant.now();
         try (Directory directory = new MMapDirectory(outputDirectory)) { //TODO: Is MMap meaningful?
-            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.CREATE_MEMORY_MAPPED_DIRECTORY, Duration.between(start, Instant.now()).toMillis(), queryId);
+//            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.CREATE_MEMORY_MAPPED_DIRECTORY, Duration.between(start, Instant.now()).toMillis(), queryId);
 
             // Verify the index by searching
-            Instant createSearcherStart = Instant.now();
+//            Instant createSearcherStart = Instant.now();
             DirectoryReader reader = DirectoryReader.open(directory);
             org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
-            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.CREATE_SEARCHER, Duration.between(createSearcherStart, Instant.now()).toMillis(), queryId);
+//            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.CREATE_SEARCHER, Duration.between(createSearcherStart, Instant.now()).toMillis(), queryId);
 
             Instant readResultStart = Instant.now();
             SearchResult searchResult = readResults(searcher, query);
@@ -554,7 +598,6 @@ public class SingleIndexSearcher {
         InputStream inputStream = s3IndexDownloader.getInputStream(zipFilePath, queryId);
         Instant start = Instant.now();
 
-        final int OPTIMAL_STREAM_BUFFER_SIZE = 1048576;
         try (ZipInputStream zipIn = new ZipInputStream(new BufferedInputStream(inputStream, OPTIMAL_STREAM_BUFFER_SIZE))) {
             byte[] zipStreamBuffer = new byte[OPTIMAL_STREAM_BUFFER_SIZE];
             ZipEntry entry;

@@ -31,10 +31,10 @@ public class SingleIndexSearcherTest {
         Path splitPath = Paths.get(getClass().getClassLoader().getResource("split_0").toURI());
         splitFileBytes = Files.readAllBytes(splitPath);
 
-        singleIndexSearcher = new SingleIndexSearcher(null, null, null, null);
+        singleIndexSearcher = new SingleIndexSearcher(null, null, null, null, 1048576);
 
         ScratchBufferPool scratchBufferPool = new ScratchBufferPool(8);
-        singleIndexSearcherWithPool = new SingleIndexSearcher(null, null, null, scratchBufferPool);
+        singleIndexSearcherWithPool = new SingleIndexSearcher(null, null, null, scratchBufferPool, 1048576);
 
         outputPath = Files.createTempDirectory("benchmark-");
         outputPathWithPool = Files.createTempDirectory("benchmark-with-pool-");

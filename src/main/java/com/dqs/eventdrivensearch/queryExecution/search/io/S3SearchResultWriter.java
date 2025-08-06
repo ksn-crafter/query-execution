@@ -69,14 +69,14 @@ public class S3SearchResultWriter {
             String bucketName = url.getHost().split("\\.")[0];
             String key = url.getPath().substring(1);
 
-            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.NUMBER_OF_MATCHING_DOCS_IN_INDEX, searchResult.documentIds().size(), queryId);
+//            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.NUMBER_OF_MATCHING_DOCS_IN_INDEX, searchResult.documentIds().size(), queryId);
 
 
-            Instant start = Instant.now();
+//            Instant start = Instant.now();
             String content = getStringV2(searchResult.documentIds(), indexFilePath);
-            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.CONTENT_GENERATION_FROM_SEARCH_RESULT, Duration.between(start, Instant.now()).toMillis(), queryId);
+//            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.CONTENT_GENERATION_FROM_SEARCH_RESULT, Duration.between(start, Instant.now()).toMillis(), queryId);
 
-            Instant putObjectStart = Instant.now();
+//            Instant putObjectStart = Instant.now();
             s3Client.putObject(
                     PutObjectRequest.builder()
                             .bucket(bucketName)
@@ -85,7 +85,7 @@ public class S3SearchResultWriter {
                     RequestBody.fromString(content)
             );
 
-            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.RESULT_PUT_OBJECT, Duration.between(putObjectStart, Instant.now()).toMillis(), queryId);
+//            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.RESULT_PUT_OBJECT, Duration.between(putObjectStart, Instant.now()).toMillis(), queryId);
 
         } catch (MalformedURLException | NoSuchKeyException e) {
             System.out.println(Level.WARNING + e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "outPutFolderPath: " + outPutFolderPath);

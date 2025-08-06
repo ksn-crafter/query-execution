@@ -58,7 +58,7 @@ public class SubQueryGeneratedConsumer {
     private void search(SubQueryGenerated subQueryGenerated, QueryDescription queryDescription) {
         System.out.printf("Sub Query with id %s, having query id %s, for tenant %s has been saved to mongo%n", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant());
         try {
-            multipleIndexSearcher.searchV2(queryDescription.term(), subQueryGenerated.queryId(), subQueryGenerated.indexPaths(), subQueryGenerated.subQueryId());
+            multipleIndexSearcher.searchV3(queryDescription.term(), subQueryGenerated.queryId(), subQueryGenerated.indexPaths(), subQueryGenerated.subQueryId());
             System.out.printf("Search for Sub Query with id %s having query id %s for tenant %s is completed%n", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant());
         } catch (Exception e) {
             System.out.printf("Search for Sub Query with id %s having query id %s for tenant %s has an error.%n", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant());
