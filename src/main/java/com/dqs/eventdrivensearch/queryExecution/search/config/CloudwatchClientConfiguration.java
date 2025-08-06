@@ -12,7 +12,7 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 public class CloudwatchClientConfiguration {
 
     @Bean
-    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+    @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
     @Profile("!test")
     public CloudWatchClient cloudWatchClient() {
         return CloudWatchClient.builder().region(Region.US_EAST_1).build();

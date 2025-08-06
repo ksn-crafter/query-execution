@@ -50,7 +50,7 @@ class SubQueryExecutedProducerIntegrationTests {
     @TestConfiguration
     static class S3TestConfig {
         @Bean
-        @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+        @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
         @Primary
         public S3Client s3Client() {
             return S3Client.builder()
@@ -59,7 +59,7 @@ class SubQueryExecutedProducerIntegrationTests {
         }
 
         @Bean
-        @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+        @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
         @Primary
         public CloudWatchClient cloudWatchClient() {
             return CloudWatchClient.builder()

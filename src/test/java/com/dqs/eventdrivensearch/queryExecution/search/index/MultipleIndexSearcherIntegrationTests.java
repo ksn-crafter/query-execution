@@ -55,7 +55,7 @@ public class MultipleIndexSearcherIntegrationTests {
     @TestConfiguration
     static class AwsClientTestConfig {
         @Bean
-        @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+        @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
         @Primary
         public S3Client s3Client(){
             return S3Client.builder()
@@ -66,7 +66,7 @@ public class MultipleIndexSearcherIntegrationTests {
         }
 
         @Bean
-        @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+        @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
         @Primary
         public CloudWatchClient cloudWatchClient() {
             return CloudWatchClient.builder()
