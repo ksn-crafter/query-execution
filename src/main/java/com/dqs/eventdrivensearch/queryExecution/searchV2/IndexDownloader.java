@@ -28,6 +28,9 @@ public class IndexDownloader {
     }
 
     public void downloadIndices(String[] s3IndexUrls, String queryId) {
+        if(s3IndexUrls == null || s3IndexUrls.length == 0){
+            throw new IllegalArgumentException("s3IndexUrls cannot be null or empty");
+        }
         for (String s3IndexUrl : s3IndexUrls) {
             try {
                 numberOfVitrualThreadsSemaphore.acquire();
@@ -37,12 +40,12 @@ public class IndexDownloader {
                     } catch (InterruptedException | IOException e) {
                         //TODO: think about exception handling
                         throw new RuntimeException(e);
+                    } finally {
+                        numberOfVitrualThreadsSemaphore.release();
                     }
                 });
             } catch (InterruptedException e) {
                 //TODO: think about exception handling
-            } finally {
-                numberOfVitrualThreadsSemaphore.release();
             }
         }
     }

@@ -9,7 +9,7 @@ import java.util.concurrent.BlockingQueue;
 
 @Component
 public class IndexQueue {
-    private final BlockingQueue<Path> indexPaths;
+    final BlockingQueue<Path> indexPaths;
 
     public IndexQueue() {
         //TODO: decide between an array or synchronous queue
