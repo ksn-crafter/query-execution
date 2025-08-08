@@ -1,4 +1,4 @@
-package com.dqs.eventdrivensearch.queryExecution.searchV2.config;
+package com.dqs.eventdrivensearch.queryExecution.config;
 
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Bean;
@@ -19,4 +19,3 @@ public class S3ClientConfiguration {
                 .build();
     }
 }
-

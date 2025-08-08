@@ -8,6 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -23,7 +25,34 @@ public class IndexDownloader {
         this.metricsPublisher = metricsPublisher;
     }
 
-    public void downloadIndex(String s3IndexUrl,String queryId) throws InterruptedException, IOException {
+    public void downloadIndices(String[] s3IndexUrls,String queryId) throws InterruptedException, IOException {
+        List<Thread> downloadTasks = new ArrayList<>();
+        for (String s3IndexUrl : s3IndexUrls) {
+           Thread downloadTask = Thread.startVirtualThread(() ->{
+                try {
+                    downloadIndex(s3IndexUrl,queryId);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+           downloadTasks.add(downloadTask);
+           //TODO: remove this hardcoding of number of virtual threads
+           if(downloadTasks.size() == 4){
+               do{
+                   for(int idx=0;idx<downloadTasks.size();idx++){
+                       if(downloadTasks.get(idx).getState() == Thread.State.TERMINATED){
+                           downloadTasks.remove(idx);
+                           break;
+                       }
+                   }
+               }while(downloadTasks.size() == 4);
+           }
+        }
+    }
+
+    private void downloadIndex(String s3IndexUrl,String queryId) throws InterruptedException, IOException {
         InputStream indexInputStream = s3Adapter.getInputStream(s3IndexUrl,queryId);
         indexPaths.put(unzipToDirectory(indexInputStream,queryId));
     }

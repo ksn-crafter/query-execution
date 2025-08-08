@@ -11,9 +11,9 @@ import java.util.concurrent.BlockingQueue;
 public class IndexQueue {
     private final BlockingQueue<Path> indexPaths;
 
-    public IndexQueue(@Value("${number_of_index_files}")int numberOfIndexFiles) {
+    public IndexQueue() {
         //TODO: decide between an array or synchronous queue
-        this.indexPaths = new ArrayBlockingQueue<>(numberOfIndexFiles);
+        this.indexPaths = new ArrayBlockingQueue<>(64);
     }
 
     public void put(Path indexPath) throws InterruptedException {
