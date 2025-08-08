@@ -4,6 +4,7 @@ import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -54,6 +55,12 @@ public class IndexDownloaderIntegrationTests {
     @Autowired
     private MetricsPublisher metricsPublisher;
 
+    @Value("${number_of_virtual_threads_for_download}")
+    private int numberOfVirtualThreadsForDownload;
+
+    @Value("${number_of_downloaded_indexes_in_queue}")
+    private int numberOfDownloadedIndexesInQueue;
+
     private IndexQueue indexQueue;
 
     private final String s3IndexUrl = "https://test-bucket/128MB-chunks/part-00000-0001a714-1dc6-443f-98f5-1a27c467863b-c000.json.gz";
@@ -85,8 +92,8 @@ public class IndexDownloaderIntegrationTests {
 
     @BeforeEach
     public void setup() throws URISyntaxException {
-        indexQueue = new IndexQueue();
-        indexDownloader = new IndexDownloader(indexQueue,s3Adapter,metricsPublisher);
+        indexQueue = new IndexQueue(numberOfDownloadedIndexesInQueue);
+        indexDownloader = new IndexDownloader(indexQueue,s3Adapter,metricsPublisher,numberOfVirtualThreadsForDownload);
         Path sampleZip = Paths.get(getClass().getClassLoader().getResource("sample.zip").toURI());
         URI s3Uri = URI.create(s3IndexUrl);
         String bucketName = s3Uri.getHost().split("\\.")[0];

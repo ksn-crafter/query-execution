@@ -1,6 +1,7 @@
 package com.dqs.eventdrivensearch.queryExecution.searchV2;
 
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
@@ -17,14 +18,16 @@ public class IndexDownloader {
     private final IndexQueue indexLocalDirectoryPaths;
     private final S3Adapter s3Adapter;
     private final MetricsPublisher metricsPublisher;
-    //TODO: think about contention and do we need to make fifo gaurantees
-    //TODO: remove this hardcoding of number of virtual threads(4)
-    private final Semaphore numberOfVitrualThreadsSemaphore = new Semaphore(4);
 
-    public IndexDownloader(IndexQueue indexLocalDirectoryPaths, S3Adapter s3Adapter, MetricsPublisher metricsPublisher) {
+
+    private final Semaphore numberOfVitrualThreadsSemaphore;
+
+    public IndexDownloader(IndexQueue indexLocalDirectoryPaths, S3Adapter s3Adapter, MetricsPublisher metricsPublisher,@Value("${number_of_virtual_threads_for_download}")
+     int numberOfVitrualThreadsForDownload) {
         this.indexLocalDirectoryPaths = indexLocalDirectoryPaths;
         this.s3Adapter = s3Adapter;
         this.metricsPublisher = metricsPublisher;
+        numberOfVitrualThreadsSemaphore = new Semaphore(numberOfVitrualThreadsForDownload);
     }
 
     public void downloadIndices(String[] s3IndexUrls, String queryId) {
