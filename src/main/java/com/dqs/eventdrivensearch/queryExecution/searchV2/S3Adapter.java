@@ -44,9 +44,8 @@ public class S3Adapter {
                     .key(key)
                     .build());
 
-        } catch (MalformedURLException | NoSuchKeyException | URISyntaxException e) {
+        } catch (MalformedURLException  | URISyntaxException | NoSuchKeyException e) {
             logger.log(Level.WARNING, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "index url: " + s3IndexUrl);
-            throw new RuntimeException(e);
         }
 
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(),queryId);
