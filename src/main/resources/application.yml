@@ -13,3 +13,7 @@ single_index_searcher_count: ${INDEX_FILES_COUNT:64}
 cloudwatch_namespace: ${CLOUDWATCH_NAMESPACE:DQS}
 output_folder_path: ${OUTPUT_FOLDER_PATH:https://test-bucket.s3.us-east-1.amazonaws.com/result}
 tenants: ${TENANTS}
+# 24 = 4 main threads and 6 virtual threads with a single main thread. scratch_buffer_pool_size=24 allows 4 main threads, each running
+# 6 virtual threads (because each index has 6 splits) to run without any contention.
+scratch_buffer_pool_size: ${SCRATCH_BUFFER_POOL_SIZE:24}
+optimal_stream_buffer_size: ${OPTIMAL_STREAM_BUFFER_SIZE_BYTES:1048576}
