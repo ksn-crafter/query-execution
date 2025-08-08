@@ -8,8 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.Semaphore;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -18,6 +17,9 @@ public class IndexDownloader {
     private final IndexQueue indexPaths;
     private final S3Adapter s3Adapter;
     private final MetricsPublisher metricsPublisher;
+    //TODO: think about contention and do we need to make fifo gaurantees
+    //TODO: remove this hardcoding of number of virtual threads(4)
+    private final Semaphore semaphore = new Semaphore(4);
 
     public IndexDownloader(IndexQueue indexPaths,S3Adapter s3Adapter,MetricsPublisher metricsPublisher) {
         this.indexPaths = indexPaths;
@@ -25,30 +27,19 @@ public class IndexDownloader {
         this.metricsPublisher = metricsPublisher;
     }
 
-    public void downloadIndices(String[] s3IndexUrls,String queryId) throws InterruptedException, IOException {
-        List<Thread> downloadTasks = new ArrayList<>();
+    public void downloadIndices(String[] s3IndexUrls,String queryId) {
         for (String s3IndexUrl : s3IndexUrls) {
-           Thread downloadTask = Thread.startVirtualThread(() ->{
+            Thread.startVirtualThread(() ->{
                 try {
+                    semaphore.acquire();
                     downloadIndex(s3IndexUrl,queryId);
-                } catch (InterruptedException e) {
+                } catch (InterruptedException | IOException e) {
+                    //TODO: think about exception handling
                     throw new RuntimeException(e);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                }finally {
+                    semaphore.release();
                 }
             });
-           downloadTasks.add(downloadTask);
-           //TODO: remove this hardcoding of number of virtual threads
-           if(downloadTasks.size() == 4){
-               do{
-                   for(int idx=0;idx<downloadTasks.size();idx++){
-                       if(downloadTasks.get(idx).getState() == Thread.State.TERMINATED){
-                           downloadTasks.remove(idx);
-                           break;
-                       }
-                   }
-               }while(downloadTasks.size() == 4);
-           }
         }
     }
 
@@ -57,7 +48,7 @@ public class IndexDownloader {
         indexPaths.put(unzipToDirectory(indexInputStream,queryId));
     }
 
-    private Path unzipToDirectory(InputStream indexInputStream,String queryId) throws InterruptedException, IOException {
+    private Path unzipToDirectory(InputStream indexInputStream,String queryId) throws  IOException {
         Instant start = Instant.now();
         Path indexDirectory = Files.createTempDirectory("indexDir-");
 
