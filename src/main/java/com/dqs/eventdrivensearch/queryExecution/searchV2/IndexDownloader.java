@@ -27,28 +27,32 @@ public class IndexDownloader {
         this.metricsPublisher = metricsPublisher;
     }
 
-    public void downloadIndices(String[] s3IndexUrls,String queryId) {
+    public void downloadIndices(String[] s3IndexUrls, String queryId) {
         for (String s3IndexUrl : s3IndexUrls) {
-            Thread.startVirtualThread(() ->{
-                try {
-                    numberOfVitrualThreadsSemaphore.acquire();
-                    downloadIndex(s3IndexUrl,queryId);
-                } catch (InterruptedException | IOException e) {
-                    //TODO: think about exception handling
-                    throw new RuntimeException(e);
-                }finally {
-                    numberOfVitrualThreadsSemaphore.release();
-                }
-            });
+            try {
+                numberOfVitrualThreadsSemaphore.acquire();
+                Thread.startVirtualThread(() -> {
+                    try {
+                        downloadIndex(s3IndexUrl, queryId);
+                    } catch (InterruptedException | IOException e) {
+                        //TODO: think about exception handling
+                        throw new RuntimeException(e);
+                    }
+                });
+            } catch (InterruptedException e) {
+                //TODO: think about exception handling
+            } finally {
+                numberOfVitrualThreadsSemaphore.release();
+            }
         }
     }
 
-    private void downloadIndex(String s3IndexUrl,String queryId) throws InterruptedException, IOException {
-        InputStream indexInputStream = s3Adapter.getInputStream(s3IndexUrl,queryId);
-        indexLocalDirectoryPaths.put(unzipToDirectory(indexInputStream,queryId));
+    private void downloadIndex(String s3IndexUrl, String queryId) throws InterruptedException, IOException {
+        InputStream indexInputStream = s3Adapter.getInputStream(s3IndexUrl, queryId);
+        indexLocalDirectoryPaths.put(unzipToDirectory(indexInputStream, queryId));
     }
 
-    private Path unzipToDirectory(InputStream indexInputStream,String queryId) throws  IOException {
+    private Path unzipToDirectory(InputStream indexInputStream, String queryId) throws IOException {
         Instant start = Instant.now();
         Path indexDirectory = Files.createTempDirectory("indexDir-");
 
