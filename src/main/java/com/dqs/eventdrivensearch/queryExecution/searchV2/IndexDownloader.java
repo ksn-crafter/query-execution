@@ -66,14 +66,14 @@ public class IndexDownloader {
         return indexDirectory;
     }
 
-    private void unzip(ZipInputStream zipIn, Path indexDirectory, int OPTIMAL_STREAM_BUFFER_SIZE) throws IOException {
+    private void unzip(ZipInputStream zipIn, Path indexDirectory,final int streamBufferSize) throws IOException {
         ZipEntry entry;
-        byte[] zipStreamBuffer = new byte[OPTIMAL_STREAM_BUFFER_SIZE];
+        byte[] zipStreamBuffer = new byte[streamBufferSize];
         while ((entry = zipIn.getNextEntry()) != null) {
             Path filePath = indexDirectory.resolve(entry.getName());
             if (!entry.isDirectory()) {
                 // Extract file
-                try (BufferedOutputStream indexOutputStream = new BufferedOutputStream(new FileOutputStream(filePath.toFile()), OPTIMAL_STREAM_BUFFER_SIZE)) {
+                try (BufferedOutputStream indexOutputStream = new BufferedOutputStream(new FileOutputStream(filePath.toFile()), streamBufferSize)) {
                     int length;
                     while ((length = zipIn.read(zipStreamBuffer)) > 0) {
                         indexOutputStream.write(zipStreamBuffer, 0, length);
