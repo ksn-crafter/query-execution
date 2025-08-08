@@ -23,11 +23,11 @@ public class IndexDownloader {
     private final Semaphore numberOfVitrualThreadsSemaphore;
 
     public IndexDownloader(IndexQueue indexLocalDirectoryPaths, S3Adapter s3Adapter, MetricsPublisher metricsPublisher,@Value("${number_of_virtual_threads_for_download}")
-     int numberOfVitrualThreadsForDownload) {
+     int numberOfVirtualThreadsForDownload) {
         this.indexLocalDirectoryPaths = indexLocalDirectoryPaths;
         this.s3Adapter = s3Adapter;
         this.metricsPublisher = metricsPublisher;
-        numberOfVitrualThreadsSemaphore = new Semaphore(numberOfVitrualThreadsForDownload);
+        numberOfVitrualThreadsSemaphore = new Semaphore(numberOfVirtualThreadsForDownload);
     }
 
     public void downloadIndices(String[] s3IndexUrls, String queryId) {
