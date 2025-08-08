@@ -14,15 +14,15 @@ import java.util.zip.ZipInputStream;
 
 @Component
 public class IndexDownloader {
-    private final IndexQueue indexPaths;
+    private final IndexQueue indexLocalDirectoryPaths;
     private final S3Adapter s3Adapter;
     private final MetricsPublisher metricsPublisher;
     //TODO: think about contention and do we need to make fifo gaurantees
     //TODO: remove this hardcoding of number of virtual threads(4)
-    private final Semaphore semaphore = new Semaphore(4);
+    private final Semaphore numberOfVitrualThreadsSemaphore = new Semaphore(4);
 
-    public IndexDownloader(IndexQueue indexPaths,S3Adapter s3Adapter,MetricsPublisher metricsPublisher) {
-        this.indexPaths = indexPaths;
+    public IndexDownloader(IndexQueue indexLocalDirectoryPaths, S3Adapter s3Adapter, MetricsPublisher metricsPublisher) {
+        this.indexLocalDirectoryPaths = indexLocalDirectoryPaths;
         this.s3Adapter = s3Adapter;
         this.metricsPublisher = metricsPublisher;
     }
@@ -31,13 +31,13 @@ public class IndexDownloader {
         for (String s3IndexUrl : s3IndexUrls) {
             Thread.startVirtualThread(() ->{
                 try {
-                    semaphore.acquire();
+                    numberOfVitrualThreadsSemaphore.acquire();
                     downloadIndex(s3IndexUrl,queryId);
                 } catch (InterruptedException | IOException e) {
                     //TODO: think about exception handling
                     throw new RuntimeException(e);
                 }finally {
-                    semaphore.release();
+                    numberOfVitrualThreadsSemaphore.release();
                 }
             });
         }
@@ -45,7 +45,7 @@ public class IndexDownloader {
 
     private void downloadIndex(String s3IndexUrl,String queryId) throws InterruptedException, IOException {
         InputStream indexInputStream = s3Adapter.getInputStream(s3IndexUrl,queryId);
-        indexPaths.put(unzipToDirectory(indexInputStream,queryId));
+        indexLocalDirectoryPaths.put(unzipToDirectory(indexInputStream,queryId));
     }
 
     private Path unzipToDirectory(InputStream indexInputStream,String queryId) throws  IOException {
@@ -60,10 +60,10 @@ public class IndexDownloader {
                 Path filePath = indexDirectory.resolve(entry.getName());
                 if (!entry.isDirectory()) {
                     // Extract file
-                    try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath.toFile()), OPTIMAL_STREAM_BUFFER_SIZE)) {
-                        int len;
-                        while ((len = zipIn.read(zipStreamBuffer)) > 0) {
-                            bos.write(zipStreamBuffer, 0, len);
+                    try (BufferedOutputStream indexOutputStream = new BufferedOutputStream(new FileOutputStream(filePath.toFile()), OPTIMAL_STREAM_BUFFER_SIZE)) {
+                        int length;
+                        while ((length = zipIn.read(zipStreamBuffer)) > 0) {
+                            indexOutputStream.write(zipStreamBuffer, 0, length);
                         }
                     }
                 } else {

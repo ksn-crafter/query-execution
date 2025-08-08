@@ -27,12 +27,12 @@ public class S3Adapter {
 
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(S3Adapter.class.getName());
 
-    public InputStream getInputStream(String filePath, String queryId) {
-        InputStream inputStream = null;
+    public InputStream getInputStream(String s3IndexUrl, String queryId) {
+        InputStream s3IndexInputStream = null;
         Instant start = Instant.now();
 
         try {
-            URL url = new URL(filePath);
+            URL url = new URL(s3IndexUrl);
             String bucketName = url.getHost().split("\\.")[0];
             String key = url.getPath().substring(1);
 
@@ -40,14 +40,14 @@ public class S3Adapter {
                     .bucket(bucketName)
                     .key(key)
                     .build());
-            inputStream = responseInputStream;
+            s3IndexInputStream = responseInputStream;
 
         } catch (MalformedURLException | NoSuchKeyException e) {
-            logger.log(Level.WARNING, e.getMessage() + "\n" + e.getStackTrace() + "\n" + "filePath: " + filePath);
+            logger.log(Level.WARNING, e.getMessage() + "\n" + e.getStackTrace() + "\n" + "index url: " + s3IndexUrl);
             throw new RuntimeException(e);
         }
 
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(),queryId);
-        return inputStream;
+        return s3IndexInputStream;
     }
 }

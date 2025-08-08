@@ -1,6 +1,6 @@
 package com.dqs.eventdrivensearch.queryExecution.searchV2;
 
-import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
@@ -13,6 +13,7 @@ public class IndexQueue {
 
     public IndexQueue() {
         //TODO: decide between an array or synchronous queue
+        //TODO: need to do something about this hardcoding
         this.indexPaths = new ArrayBlockingQueue<>(64);
     }
 
