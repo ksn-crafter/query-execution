@@ -1,5 +1,6 @@
 package com.dqs.eventdrivensearch.queryExecution.search.executors;
 
+import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -7,5 +8,8 @@ import org.springframework.stereotype.Component;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class ResultWriterExecutorService {
-    public void submit(){};
+
+    public void submit(String queryId, SearchResult result, String s3IndexFilePath) {
+
+    }
 }

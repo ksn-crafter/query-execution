@@ -2,6 +2,7 @@ package com.dqs.eventdrivensearch.queryExecution.search.executors;
 
 import com.dqs.eventdrivensearch.queryExecution.search.index.IndexSearcher;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTask;
+import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTaskWithIndexPath;
 import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,8 +26,12 @@ public class SearchExecutorService {
         this.executorService = Executors.newFixedThreadPool(poolSize);
     }
 
-    public void submit(SearchTask task) {
+    public void submit(SearchTaskWithIndexPath task) {
         executorService.submit(() -> indexSearcher.search(task));
+    }
+
+    public void submit(SearchTask task) {
+        //TODO:for cached file paths
     }
 
     @PreDestroy

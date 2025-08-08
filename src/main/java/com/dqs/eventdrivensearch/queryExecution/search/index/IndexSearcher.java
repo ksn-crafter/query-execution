@@ -2,6 +2,7 @@ package com.dqs.eventdrivensearch.queryExecution.search.index;
 
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTask;
+import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTaskWithIndexPath;
 import com.dqs.eventdrivensearch.queryExecution.search.executors.ResultWriterExecutorService;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
@@ -29,19 +30,20 @@ public class IndexSearcher {
     private static final Logger logger = Logger.getLogger(IndexSearcher.class.getName());
 
     @Autowired
-    ResultWriterExecutorService resultWriterPool;
+    ResultWriterExecutorService resultWriterExecutorService;
 
-    public void search(SearchTask task) {
-
-        try (Directory directory = new MMapDirectory(task.indexPath())) {
+    public void search(SearchTaskWithIndexPath searchTaskWithIndexPath) {
+        SearchTask task = searchTaskWithIndexPath.task();
+        try (Directory directory = new MMapDirectory(searchTaskWithIndexPath.indexPath())) {
             DirectoryReader reader = DirectoryReader.open(directory);
             org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
             SearchResult searchResult = readResults(searcher, task.query());
-            resultWriterPool.submit();
+
+            resultWriterExecutorService.submit(task.queryId(), searchResult, task.s3IndexFilePath());
         } catch (Exception e) {
-            logger.log(Level.WARNING, String.format("Index search failed for queryId=%s, subQueryId=%s, indexPath=%s", task.queryId(), task.subQueryId(), task.indexPath()), e);
+            logger.log(Level.WARNING, String.format("Index search failed for queryId=%s, subQueryId=%s, indexPath=%s", task.queryId(), task.subQueryId(), searchTaskWithIndexPath.indexPath()), e);
         } finally {
-            deleteTempDirectory(task.indexPath().toFile());
+            deleteTempDirectory(searchTaskWithIndexPath.indexPath().toFile());
         }
 
     }
@@ -93,18 +95,16 @@ public class IndexSearcher {
                 if (file.isDirectory()) {
                     this.deleteTempDirectory(file);
                 } else {
-                    System.out.println("Attempting to delete " + file.getName());
                     if (!file.delete()) {
-                        System.out.println("Failed to delete: " + file.getAbsolutePath());
+                        logger.log(Level.WARNING, "Failed to delete directory: " + directory.getAbsolutePath());
                     }
                 }
             }
         }
 
-        System.out.println("Attempting to delete " + directory.getName());
         // Delete the main directory itself
         if (!directory.delete()) {
-            System.out.println("Failed to delete directory: " + directory.getAbsolutePath());
+            logger.log(Level.WARNING, "Failed to delete directory: " + directory.getAbsolutePath());
         }
     }
 
