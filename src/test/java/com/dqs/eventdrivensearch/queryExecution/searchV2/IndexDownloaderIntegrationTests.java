@@ -57,10 +57,10 @@ public class IndexDownloaderIntegrationTests {
     @Autowired
     private S3IndexLocationFactory s3IndexLocationFactory;
 
-    @Value("${number_of_virtual_threads_for_download}")
+    @Value("${number_of_virtual_threads_for_download:2}")
     private int numberOfVirtualThreadsForDownload;
 
-    @Value("${number_of_downloaded_indexes_in_queue}")
+    @Value("${number_of_downloaded_indexes_in_queue:2}")
     private int numberOfDownloadedIndexesInQueue;
 
     private final String s3IndexUrl = "https://test-bucket/128MB-chunks/part-00000-0001a714-1dc6-443f-98f5-1a27c467863b-c000.json.gz";
@@ -70,11 +70,11 @@ public class IndexDownloaderIntegrationTests {
         @Bean
         @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
         @Primary
-        public S3Client s3Client(){
+        public S3Client s3Client() {
             return S3Client.builder()
                     .endpointOverride(URI.create(localStack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
                     .region(Region.of(localStack.getRegion()))
-                    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localStack.getAccessKey(),localStack.getSecretKey())))
+                    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localStack.getAccessKey(), localStack.getSecretKey())))
                     .build();
         }
 
@@ -85,14 +85,14 @@ public class IndexDownloaderIntegrationTests {
             return CloudWatchClient.builder()
                     .endpointOverride(URI.create(localStack.getEndpointOverride(LocalStackContainer.Service.CLOUDWATCH).toString()))
                     .region(Region.of(localStack.getRegion()))
-                    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localStack.getAccessKey(),localStack.getSecretKey())))
+                    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localStack.getAccessKey(), localStack.getSecretKey())))
                     .build();
         }
     }
 
     @BeforeEach
     public void setup() throws URISyntaxException {
-        indexDownloader = new IndexDownloader(metricsPublisher,numberOfVirtualThreadsForDownload);
+        indexDownloader = new IndexDownloader(metricsPublisher, numberOfVirtualThreadsForDownload);
         Path sampleZip = Paths.get(getClass().getClassLoader().getResource("sample.zip").toURI());
         URI s3Uri = URI.create(s3IndexUrl);
         String bucketName = s3Uri.getHost().split("\\.")[0];
@@ -106,22 +106,22 @@ public class IndexDownloaderIntegrationTests {
     @Test
     public void shouldDownloadAnIndexFromS3() throws InterruptedException, MalformedURLException, URISyntaxException {
         S3IndexLocation[] s3IndexLocations = {s3IndexLocationFactory.create(s3IndexUrl)};
-        indexDownloader.downloadIndices(s3IndexLocations,"");
+        indexDownloader.downloadIndices(s3IndexLocations, "");
         Thread.sleep(1000);
     }
 
     @Test
     public void shouldDownloadMultipleIndicesFromS3() throws InterruptedException, MalformedURLException, URISyntaxException {
-        S3IndexLocation[] s3IndexLocations = {s3IndexLocationFactory.create(s3IndexUrl),s3IndexLocationFactory.create(s3IndexUrl)};
-        indexDownloader.downloadIndices(s3IndexLocations,"");
+        S3IndexLocation[] s3IndexLocations = {s3IndexLocationFactory.create(s3IndexUrl), s3IndexLocationFactory.create(s3IndexUrl)};
+        indexDownloader.downloadIndices(s3IndexLocations, "");
         Thread.sleep(5000);
     }
 
     @Test
-    public void shouldNotAcceptEmptyIndexPathsForDownloads(){
+    public void shouldNotAcceptEmptyIndexPathsForDownloads() {
         assertThrows(IllegalArgumentException.class, () -> {
             S3IndexLocation[] s3IndexLocations = {};
-            indexDownloader.downloadIndices(s3IndexLocations,"");
+            indexDownloader.downloadIndices(s3IndexLocations, "");
         });
     }
 }

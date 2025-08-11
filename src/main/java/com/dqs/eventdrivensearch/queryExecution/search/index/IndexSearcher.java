@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,20 +33,24 @@ public class IndexSearcher {
     @Autowired
     ResultWriterExecutorService resultWriterExecutorService;
 
-    public void search(SearchTaskWithIndexPath searchTaskWithIndexPath) {
+    public CompletableFuture<SearchResult> search(SearchTaskWithIndexPath searchTaskWithIndexPath) {
         SearchTask task = searchTaskWithIndexPath.task();
+        System.out.println(task);
+        SearchResult searchResult;
         try (Directory directory = new MMapDirectory(searchTaskWithIndexPath.indexPath())) {
             DirectoryReader reader = DirectoryReader.open(directory);
             org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
-            SearchResult searchResult = readResults(searcher, task.query());
-
-            resultWriterExecutorService.submit(task.queryId(), searchResult, task.s3IndexFilePath());
+            searchResult = readResults(searcher, task.query());
         } catch (Exception e) {
             logger.log(Level.WARNING, String.format("Index search failed for queryId=%s, subQueryId=%s, indexPath=%s", task.queryId(), task.subQueryId(), searchTaskWithIndexPath.indexPath()), e);
+            return CompletableFuture.failedFuture(e);
         } finally {
             deleteTempDirectory(searchTaskWithIndexPath.indexPath().toFile());
         }
 
+        System.out.println(searchResult);
+        return resultWriterExecutorService.submit(task.queryId(), searchResult, task.s3IndexFilePath())
+                .thenApply(v -> searchResult);
     }
 
     private SearchResult readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {

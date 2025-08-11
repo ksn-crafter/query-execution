@@ -22,7 +22,7 @@ public class IndexDownloader {
 
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(IndexDownloader.class.getName());
 
-    public IndexDownloader(MetricsPublisher metricsPublisher, @Value("${number_of_virtual_threads_for_download}") int numberOfVirtualThreadsForDownload) {
+    public IndexDownloader(MetricsPublisher metricsPublisher, @Value("${number_of_virtual_threads_for_download:2}") int numberOfVirtualThreadsForDownload) {
         this.metricsPublisher = metricsPublisher;
         numberOfVitrualThreadsSemaphore = new Semaphore(numberOfVirtualThreadsForDownload);
     }
@@ -34,19 +34,19 @@ public class IndexDownloader {
     }
 
     public void downloadIndex(S3IndexLocation s3IndexLocation, String queryId) {
-            numberOfVitrualThreadsSemaphore.acquireUninterruptibly();
-            Thread.startVirtualThread(() -> {
-                try {
-                    InputStream indexInputStream = s3IndexLocation.downloadAsStream(queryId);
-                    unzipToDirectory(indexInputStream, queryId);
-                } catch (IOException e) {
-                    //log the exception for now, eventually this should add up as a metric to final results
-                    //as a skipped/failed document search count
-                    logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "index url: " + s3IndexLocation);
-                } finally {
-                    numberOfVitrualThreadsSemaphore.release();
-                }
-            });
+        numberOfVitrualThreadsSemaphore.acquireUninterruptibly();
+        Thread.startVirtualThread(() -> {
+            try {
+                InputStream indexInputStream = s3IndexLocation.downloadAsStream(queryId);
+                unzipToDirectory(indexInputStream, queryId);
+            } catch (IOException e) {
+                //log the exception for now, eventually this should add up as a metric to final results
+                //as a skipped/failed document search count
+                logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "index url: " + s3IndexLocation);
+            } finally {
+                numberOfVitrualThreadsSemaphore.release();
+            }
+        });
     }
 
     private Path unzipToDirectory(InputStream indexInputStream, String queryId) throws IOException {
@@ -67,7 +67,7 @@ public class IndexDownloader {
         return indexDirectory;
     }
 
-    private void unzip(ZipInputStream zipIn, Path indexDirectory,final int streamBufferSize) throws IOException {
+    private void unzip(ZipInputStream zipIn, Path indexDirectory, final int streamBufferSize) throws IOException {
         ZipEntry entry;
         byte[] zipStreamBuffer = new byte[streamBufferSize];
         while ((entry = zipIn.getNextEntry()) != null) {

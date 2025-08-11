@@ -5,11 +5,13 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.CompletableFuture;
+
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class ResultWriterExecutorService {
 
-    public void submit(String queryId, SearchResult result, String s3IndexFilePath) {
-
+    public CompletableFuture<Void> submit(String queryId, SearchResult result, String s3IndexFilePath) {
+        return CompletableFuture.completedFuture(null);
     }
 }
