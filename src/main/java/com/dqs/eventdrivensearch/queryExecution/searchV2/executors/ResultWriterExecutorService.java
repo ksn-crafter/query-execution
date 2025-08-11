@@ -1,4 +1,4 @@
-package com.dqs.eventdrivensearch.queryExecution.search.executors;
+package com.dqs.eventdrivensearch.queryExecution.searchV2.executors;
 
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;

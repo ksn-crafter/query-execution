@@ -1,9 +1,10 @@
 package com.dqs.eventdrivensearch.queryExecution.executors;
 
 
-import com.dqs.eventdrivensearch.queryExecution.search.executors.ResultWriterExecutorService;
-import com.dqs.eventdrivensearch.queryExecution.search.executors.SearchExecutorService;
-import com.dqs.eventdrivensearch.queryExecution.search.index.IndexSearcher;
+import com.dqs.eventdrivensearch.queryExecution.searchV2.IndexDownloader;
+import com.dqs.eventdrivensearch.queryExecution.searchV2.executors.ResultWriterExecutorService;
+import com.dqs.eventdrivensearch.queryExecution.searchV2.executors.SearchExecutorService;
+import com.dqs.eventdrivensearch.queryExecution.searchV2.IndexSearcher;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTask;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTaskWithIndexPath;
@@ -28,6 +29,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import static com.dqs.eventdrivensearch.queryExecution.search.utils.Utilities.readAndUnzipInDirectory;
+
 @ExtendWith(SpringExtension.class)
 @Import({SearchExecutorService.class, IndexSearcher.class, ResultWriterExecutorService.class})
 @ActiveProfiles("test")
@@ -44,7 +47,7 @@ public class SearchExecutorServiceTest {
 
         try (InputStream inputStream = SearchExecutorServiceTest.class.getClassLoader().getResourceAsStream("sample.zip")) {
             indexFilePath = Files.createTempDirectory("tempDirPrefix-");
-            Utilities.readAndUnzipInDirectory(inputStream, indexFilePath);
+            readAndUnzipInDirectory(inputStream, indexFilePath);
         }
     }
 

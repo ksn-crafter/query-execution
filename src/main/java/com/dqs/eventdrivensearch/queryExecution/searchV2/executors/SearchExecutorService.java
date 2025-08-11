@@ -1,8 +1,7 @@
-package com.dqs.eventdrivensearch.queryExecution.search.executors;
+package com.dqs.eventdrivensearch.queryExecution.searchV2.executors;
 
-import com.dqs.eventdrivensearch.queryExecution.search.index.IndexSearcher;
+import com.dqs.eventdrivensearch.queryExecution.searchV2.IndexSearcher;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
-import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTask;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTaskWithIndexPath;
 import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,9 +32,9 @@ public class SearchExecutorService {
         return executorService.submit(() -> indexSearcher.search(task));
     }
 
-    public void submit(SearchTask task) {
-        //TODO:for cached file paths
-    }
+//    public void submit(SearchTask task) {
+//        //TODO: for cached file paths
+//    }
 
     @PreDestroy
     public void shutdown() {

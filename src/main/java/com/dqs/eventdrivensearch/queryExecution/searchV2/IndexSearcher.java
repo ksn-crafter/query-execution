@@ -1,9 +1,9 @@
-package com.dqs.eventdrivensearch.queryExecution.search.index;
+package com.dqs.eventdrivensearch.queryExecution.searchV2;
 
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTask;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTaskWithIndexPath;
-import com.dqs.eventdrivensearch.queryExecution.search.executors.ResultWriterExecutorService;
+import com.dqs.eventdrivensearch.queryExecution.searchV2.executors.ResultWriterExecutorService;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.Query;
@@ -35,7 +35,6 @@ public class IndexSearcher {
 
     public CompletableFuture<SearchResult> search(SearchTaskWithIndexPath searchTaskWithIndexPath) {
         SearchTask task = searchTaskWithIndexPath.task();
-        System.out.println(task);
         SearchResult searchResult;
         try (Directory directory = new MMapDirectory(searchTaskWithIndexPath.indexPath())) {
             DirectoryReader reader = DirectoryReader.open(directory);
