@@ -52,7 +52,7 @@ public class SearchExecutorServiceTest {
     void testSearchTaskExecution() throws ExecutionException, InterruptedException, ParseException {
         Query query = Utilities.getQuery("Historical", new StandardAnalyzer());
         SearchTask task = new SearchTask(query, "query-1", "subquery-1", "path/to/s3",indexFilePath);
-        Future<CompletableFuture<SearchResult>> result = searchExecutorService.submit(task);
-        Assertions.assertEquals(1048, result.get().get().totalHits());
+        CompletableFuture<SearchResult> result = searchExecutorService.submit(task);
+        Assertions.assertEquals(1048, result.get().totalHits());
     }
 }

@@ -28,8 +28,9 @@ public class SearchExecutorService {
         this.executorService = Executors.newFixedThreadPool(poolSize);
     }
 
-    public Future<CompletableFuture<SearchResult>> submit(SearchTask task) {
-        return executorService.submit(() -> indexSearcher.search(task));
+    public CompletableFuture<SearchResult> submit(SearchTask task) {
+        return CompletableFuture.supplyAsync(() -> indexSearcher.search(task), executorService)
+                .thenCompose(f -> f);
     }
 
 //    public void submit(SearchTask task) {
