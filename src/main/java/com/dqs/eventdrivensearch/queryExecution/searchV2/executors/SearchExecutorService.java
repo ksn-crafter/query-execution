@@ -1,8 +1,8 @@
 package com.dqs.eventdrivensearch.queryExecution.searchV2.executors;
 
+import com.dqs.eventdrivensearch.queryExecution.model.SearchTask;
 import com.dqs.eventdrivensearch.queryExecution.searchV2.IndexSearcher;
-import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
-import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTaskWithIndexPath;
+import com.dqs.eventdrivensearch.queryExecution.model.SearchResult;
 import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,7 +28,7 @@ public class SearchExecutorService {
         this.executorService = Executors.newFixedThreadPool(poolSize);
     }
 
-    public Future<CompletableFuture<SearchResult>> submit(SearchTaskWithIndexPath task) {
+    public Future<CompletableFuture<SearchResult>> submit(SearchTask task) {
         return executorService.submit(() -> indexSearcher.search(task));
     }
 

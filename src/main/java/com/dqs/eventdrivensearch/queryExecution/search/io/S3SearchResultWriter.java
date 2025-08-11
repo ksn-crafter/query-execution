@@ -1,6 +1,6 @@
 package com.dqs.eventdrivensearch.queryExecution.search.io;
 
-import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
+import com.dqs.eventdrivensearch.queryExecution.model.SearchResult;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -11,7 +11,6 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 

@@ -2,7 +2,7 @@ package com.dqs.eventdrivensearch.queryExecution.search.index;
 
 import com.dqs.eventdrivensearch.queryExecution.search.io.S3SearchResultWriter;
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
-import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
+import com.dqs.eventdrivensearch.queryExecution.model.SearchResult;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.Query;

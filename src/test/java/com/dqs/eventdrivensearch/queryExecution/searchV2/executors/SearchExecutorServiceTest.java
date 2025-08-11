@@ -1,13 +1,9 @@
-package com.dqs.eventdrivensearch.queryExecution.executors;
+package com.dqs.eventdrivensearch.queryExecution.searchV2.executors;
 
 
-import com.dqs.eventdrivensearch.queryExecution.searchV2.IndexDownloader;
-import com.dqs.eventdrivensearch.queryExecution.searchV2.executors.ResultWriterExecutorService;
-import com.dqs.eventdrivensearch.queryExecution.searchV2.executors.SearchExecutorService;
 import com.dqs.eventdrivensearch.queryExecution.searchV2.IndexSearcher;
-import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
-import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTask;
-import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTaskWithIndexPath;
+import com.dqs.eventdrivensearch.queryExecution.model.SearchResult;
+import com.dqs.eventdrivensearch.queryExecution.model.SearchTask;
 import com.dqs.eventdrivensearch.queryExecution.search.utils.Utilities;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -55,7 +51,7 @@ public class SearchExecutorServiceTest {
     @Test
     void testSearchTaskExecution() throws ExecutionException, InterruptedException, ParseException {
         Query query = Utilities.getQuery("Historical", new StandardAnalyzer());
-        SearchTaskWithIndexPath task = new SearchTaskWithIndexPath(indexFilePath, new SearchTask(query, "query-1", "subquery-1", "path/to/s3"));
+        SearchTask task = new SearchTask(query, "query-1", "subquery-1", "path/to/s3",indexFilePath);
         Future<CompletableFuture<SearchResult>> result = searchExecutorService.submit(task);
         Assertions.assertEquals(1048, result.get().get().totalHits());
     }

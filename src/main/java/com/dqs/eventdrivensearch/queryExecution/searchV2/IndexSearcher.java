@@ -1,8 +1,7 @@
 package com.dqs.eventdrivensearch.queryExecution.searchV2;
 
-import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
-import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTask;
-import com.dqs.eventdrivensearch.queryExecution.search.model.SearchTaskWithIndexPath;
+import com.dqs.eventdrivensearch.queryExecution.model.SearchResult;
+import com.dqs.eventdrivensearch.queryExecution.model.SearchTask;
 import com.dqs.eventdrivensearch.queryExecution.searchV2.executors.ResultWriterExecutorService;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
@@ -33,22 +32,21 @@ public class IndexSearcher {
     @Autowired
     ResultWriterExecutorService resultWriterExecutorService;
 
-    public CompletableFuture<SearchResult> search(SearchTaskWithIndexPath searchTaskWithIndexPath) {
-        SearchTask task = searchTaskWithIndexPath.task();
+    public CompletableFuture<SearchResult> search(SearchTask searchTask) {
         SearchResult searchResult;
-        try (Directory directory = new MMapDirectory(searchTaskWithIndexPath.indexPath())) {
+        try (Directory directory = new MMapDirectory(searchTask.indexPath())) {
             DirectoryReader reader = DirectoryReader.open(directory);
             org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
-            searchResult = readResults(searcher, task.query());
+            searchResult = readResults(searcher, searchTask.query());
         } catch (Exception e) {
-            logger.log(Level.WARNING, String.format("Index search failed for queryId=%s, subQueryId=%s, indexPath=%s", task.queryId(), task.subQueryId(), searchTaskWithIndexPath.indexPath()), e);
+            logger.log(Level.WARNING, String.format("Index search failed for queryId=%s, subQueryId=%s, indexPath=%s", searchTask.queryId(), searchTask.subQueryId(), searchTask.indexPath()), e);
             return CompletableFuture.failedFuture(e);
         } finally {
-            deleteTempDirectory(searchTaskWithIndexPath.indexPath().toFile());
+            deleteTempDirectory(searchTask.indexPath().toFile());
         }
 
         System.out.println(searchResult);
-        return resultWriterExecutorService.submit(task.queryId(), searchResult, task.s3IndexFilePath())
+        return resultWriterExecutorService.submit(searchTask.queryId(), searchResult, searchTask.s3IndexFilePath())
                 .thenApply(v -> searchResult);
     }
 
