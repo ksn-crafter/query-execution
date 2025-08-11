@@ -45,7 +45,6 @@ public class IndexSearcher {
             deleteTempDirectory(searchTask.indexPath().toFile());
         }
 
-        System.out.println(searchResult);
         return resultWriterExecutorService.submit(searchTask.queryId(), searchResult, searchTask.s3IndexFilePath())
                 .thenApply(v -> searchResult);
     }

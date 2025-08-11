@@ -3,30 +3,38 @@ package com.dqs.eventdrivensearch.queryExecution.consumer;
 import com.dqs.eventdrivensearch.queryExecution.event.SubQueryGenerated;
 import com.dqs.eventdrivensearch.queryExecution.model.QueryDescription;
 import com.dqs.eventdrivensearch.queryExecution.model.SubQuery;
-import com.dqs.eventdrivensearch.queryExecution.producer.SubQueryExecutedProducer;
-import com.dqs.eventdrivensearch.queryExecution.search.index.MultipleIndexSearcher;
+import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
+import com.dqs.eventdrivensearch.queryExecution.searchV2.IndexDownloader;
+import com.dqs.eventdrivensearch.queryExecution.searchV2.S3IndexLocation;
 import com.dqs.eventdrivensearch.queryExecution.services.QueryDescriptionService;
 import com.dqs.eventdrivensearch.queryExecution.services.QueryStatusService;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.services.s3.S3Client;
 
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 
 @Component
 public class SubQueryGeneratedConsumer {
     private final QueryDescriptionService queryDescriptionService;
-    private final MultipleIndexSearcher multipleIndexSearcher;
-    private final SubQueryExecutedProducer subQueryExecutedProducer;
     private final QueryStatusService queryStatusService;
+    private final IndexDownloader indexDownloader;
+    private final S3Client s3Client;
+    private final MetricsPublisher metricsPublisher;
 
     public SubQueryGeneratedConsumer(QueryDescriptionService queryDescriptionService,
-                                     SubQueryExecutedProducer producer,
-                                     MultipleIndexSearcher multipleIndexSearcher,
-                                     QueryStatusService queryStatusService) {
+                                     IndexDownloader indexDownloader,
+                                     QueryStatusService queryStatusService,
+                                     S3Client s3Client,
+                                     MetricsPublisher metricsPublisher) {
         this.queryDescriptionService = queryDescriptionService;
-        this.multipleIndexSearcher = multipleIndexSearcher;
-        this.subQueryExecutedProducer = producer;
         this.queryStatusService = queryStatusService;
+        this.indexDownloader = indexDownloader;
+        this.s3Client = s3Client;
+        this.metricsPublisher = metricsPublisher;
     }
 
     /**
@@ -61,7 +69,13 @@ public class SubQueryGeneratedConsumer {
     private void search(SubQueryGenerated subQueryGenerated, QueryDescription queryDescription) {
         System.out.println(String.format("Sub Query with id %s, having query id %s, for tenant %s has been saved to mongo", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()));
         try {
-            multipleIndexSearcher.search(queryDescription.term(), subQueryGenerated.queryId(), subQueryGenerated.indexPaths(), subQueryGenerated.subQueryId());
+            indexDownloader.downloadIndices(Arrays.stream(subQueryGenerated.indexPaths()).map(indexPath -> {
+                try {
+                    return new S3IndexLocation(indexPath,s3Client,metricsPublisher);
+                } catch (URISyntaxException | MalformedURLException e) {
+                    throw new RuntimeException(e);
+                }
+            }).toList(), subQueryGenerated.queryId(), subQueryGenerated.subQueryId(), queryDescription.term());
             System.out.println(String.format("Search for Sub Query with id %s having query id %s for tenant %s is completed", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()));
         } catch (Exception e) {
             System.out.println(String.format("Search for Sub Query with id %s having query id %s for tenant %s has an error.", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()));

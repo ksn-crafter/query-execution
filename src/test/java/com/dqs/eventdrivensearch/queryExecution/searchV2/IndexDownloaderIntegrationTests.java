@@ -1,6 +1,5 @@
 package com.dqs.eventdrivensearch.queryExecution.searchV2;
 
-import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,19 +24,22 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.net.MalformedURLException;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
 @Testcontainers
 @ActiveProfiles("test")
 public class IndexDownloaderIntegrationTests {
+    @Autowired
     private IndexDownloader indexDownloader;
 
     @Container
@@ -50,12 +52,9 @@ public class IndexDownloaderIntegrationTests {
     @Autowired
     private S3Client s3Client;
 
-
-    @Autowired
-    private MetricsPublisher metricsPublisher;
-
     @Autowired
     private S3IndexLocationFactory s3IndexLocationFactory;
+
 
     @Value("${number_of_virtual_threads_for_download:2}")
     private int numberOfVirtualThreadsForDownload;
@@ -92,7 +91,6 @@ public class IndexDownloaderIntegrationTests {
 
     @BeforeEach
     public void setup() throws URISyntaxException {
-        indexDownloader = new IndexDownloader(metricsPublisher, numberOfVirtualThreadsForDownload);
         Path sampleZip = Paths.get(getClass().getClassLoader().getResource("sample.zip").toURI());
         URI s3Uri = URI.create(s3IndexUrl);
         String bucketName = s3Uri.getHost().split("\\.")[0];
@@ -104,24 +102,24 @@ public class IndexDownloaderIntegrationTests {
     }
 
     @Test
-    public void shouldDownloadAnIndexFromS3() throws InterruptedException, MalformedURLException, URISyntaxException {
-        S3IndexLocation[] s3IndexLocations = {s3IndexLocationFactory.create(s3IndexUrl)};
-        indexDownloader.downloadIndices(s3IndexLocations, "");
-        Thread.sleep(1000);
+    public void shouldDownloadAnIndexFromS3() throws InterruptedException, IOException, URISyntaxException {
+        List<S3IndexLocation> s3IndexLocations = List.of(s3IndexLocationFactory.create(s3IndexUrl));
+        indexDownloader.downloadIndices(s3IndexLocations, "123", "456", "test");
+        //TODO: what do I test here?
     }
 
     @Test
-    public void shouldDownloadMultipleIndicesFromS3() throws InterruptedException, MalformedURLException, URISyntaxException {
-        S3IndexLocation[] s3IndexLocations = {s3IndexLocationFactory.create(s3IndexUrl), s3IndexLocationFactory.create(s3IndexUrl)};
-        indexDownloader.downloadIndices(s3IndexLocations, "");
-        Thread.sleep(5000);
+    public void shouldDownloadMultipleIndicesFromS3() throws InterruptedException, IOException, URISyntaxException {
+        List<S3IndexLocation> s3IndexLocations = List.of(s3IndexLocationFactory.create(s3IndexUrl), s3IndexLocationFactory.create(s3IndexUrl));
+        indexDownloader.downloadIndices(s3IndexLocations, "", "", "test");
+        //TODO: what do I test here
     }
 
     @Test
     public void shouldNotAcceptEmptyIndexPathsForDownloads() {
         assertThrows(IllegalArgumentException.class, () -> {
-            S3IndexLocation[] s3IndexLocations = {};
-            indexDownloader.downloadIndices(s3IndexLocations, "");
+            List<S3IndexLocation> s3IndexLocations = new ArrayList<>();
+            indexDownloader.downloadIndices(s3IndexLocations, "", "", "test");
         });
     }
 }

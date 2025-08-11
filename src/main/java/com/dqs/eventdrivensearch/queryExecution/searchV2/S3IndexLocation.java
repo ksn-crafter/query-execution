@@ -26,7 +26,7 @@ public class S3IndexLocation {
 
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(S3IndexLocation.class.getName());
 
-    S3IndexLocation(String s3IndexUrl, S3Client s3Client, MetricsPublisher metricsPublisher) throws URISyntaxException, MalformedURLException {
+    public S3IndexLocation(String s3IndexUrl, S3Client s3Client, MetricsPublisher metricsPublisher) throws URISyntaxException, MalformedURLException {
         URL url = new URI(s3IndexUrl).toURL();
         this.bucket = url.getHost().split("\\.")[0];
         this.key = url.getPath().substring(1);
@@ -48,5 +48,14 @@ public class S3IndexLocation {
         }
 
         return null;
+    }
+
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("s3://");
+        sb.append(bucket);
+        sb.append("/");
+        sb.append(key);
+        return sb.toString();
     }
 }
