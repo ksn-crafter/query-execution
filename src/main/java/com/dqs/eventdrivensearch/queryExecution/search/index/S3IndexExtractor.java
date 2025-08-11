@@ -44,7 +44,7 @@ public class S3IndexExtractor {
                 executorService.submit(() -> {
                     try {
                         Path indexDirectory = prepareIndexDirectory(indexPath, queryId);
-                        searchTaskQueue.submitTask(new SearchTask(indexDirectory, getQuery(query), queryId,subQueryId));
+                        searchTaskQueue.submitTask(new SearchTask( getQuery(query), queryId,subQueryId,indexDirectory.toString()));
                     } catch (IOException e) {
                         logger.log(Level.WARNING, String.format("Index extraction failed for queryId=%s, subQueryId=%s, indexPath=%s", queryId, subQueryId, indexPath), e);
                         throw new RuntimeException(e);
