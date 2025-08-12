@@ -2,6 +2,7 @@ package com.dqs.eventdrivensearch.queryExecution.searchV2;
 
 import com.dqs.eventdrivensearch.queryExecution.model.SearchResult;
 import com.dqs.eventdrivensearch.queryExecution.model.SearchTask;
+import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import com.dqs.eventdrivensearch.queryExecution.searchV2.executors.ResultWriterExecutorService;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -32,12 +35,19 @@ public class IndexSearcher {
     @Autowired
     ResultWriterExecutorService resultWriterExecutorService;
 
+    @Autowired
+    private MetricsPublisher metricsPublisher;
+
     public CompletableFuture<SearchResult> search(SearchTask searchTask) {
         SearchResult searchResult;
         try (Directory directory = new MMapDirectory(searchTask.indexPath())) {
             DirectoryReader reader = DirectoryReader.open(directory);
+
+            Instant start = Instant.now();
             org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
             searchResult = readResults(searcher, searchTask.query());
+            metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), searchTask.queryId());
+
         } catch (Exception e) {
             logger.log(Level.WARNING, String.format("Index search failed for queryId=%s, subQueryId=%s, indexPath=%s", searchTask.queryId(), searchTask.subQueryId(), searchTask.indexPath()), e);
             return CompletableFuture.failedFuture(e);
