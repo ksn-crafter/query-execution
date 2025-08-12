@@ -82,7 +82,7 @@ public class IndexDownloader {
 
     private Path unzipToDirectory(InputStream indexInputStream, String queryId) throws IOException {
         Instant start = Instant.now();
-        try (indexInputStream) {
+        try {
             return zippedIndex.unzip(indexInputStream);
         } catch (IOException e) {
             logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "queryId: " + queryId);
