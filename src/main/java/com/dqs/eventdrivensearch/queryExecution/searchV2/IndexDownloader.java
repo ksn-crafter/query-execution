@@ -28,15 +28,16 @@ public class IndexDownloader {
     private final Semaphore numberOfVitrualThreadsSemaphore;
     private final SearchExecutorService searchThreadPool;
     private final ZippedIndex  zippedIndex;
-    private final EmailIndex emailIndex = new EmailIndex();
+    private final EmailIndex emailIndex;
     private final Executor virtualThreadExecutor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().factory());
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(IndexDownloader.class.getName());
 
-    public IndexDownloader(SearchExecutorService searchThreadPool,ZippedIndex zippedIndex, MetricsPublisher metricsPublisher, @Value("${number_of_virtual_threads_for_download}") int numberOfVirtualThreadsForDownload) {
+    public IndexDownloader(SearchExecutorService searchThreadPool,ZippedIndex zippedIndex,EmailIndex emailIndex, MetricsPublisher metricsPublisher, @Value("${number_of_virtual_threads_for_download}") int numberOfVirtualThreadsForDownload) {
         this.metricsPublisher = metricsPublisher;
         numberOfVitrualThreadsSemaphore = new Semaphore(numberOfVirtualThreadsForDownload);
         this.searchThreadPool = searchThreadPool;
         this.zippedIndex = zippedIndex;
+        this.emailIndex = emailIndex;
     }
 
     public CompletableFuture<Void> downloadIndices(List<S3IndexLocation> s3IndexLocations, String queryId, String subQueryId, String searchTerm) {

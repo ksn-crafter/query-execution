@@ -48,6 +48,9 @@ public class SearchExecutorServiceTest {
     static Path indexFilePath;
 
     @Autowired
+    private EmailIndex emailIndex;
+
+    @Autowired
     private S3Client s3Client;
 
     @Container
@@ -93,7 +96,7 @@ public class SearchExecutorServiceTest {
 
     @Test
     void shouldExecuteSearchTaskAndReturnCorrectResults() throws ExecutionException, InterruptedException, ParseException {
-        Query query = new EmailIndex().getQuery("Historical");
+        Query query = emailIndex.getQuery("Historical");
         SearchTask task = new SearchTask(query, "query-1", "subquery-1", "path/to/s3",indexFilePath);
         CompletableFuture<SearchResult> result = searchExecutorService.submit(task);
         Assertions.assertEquals(1048, result.get().totalHits());
@@ -101,7 +104,7 @@ public class SearchExecutorServiceTest {
 
     @Test
     void shouldExecuteSearchTaskAndWriteResultsToS3() throws ExecutionException, InterruptedException, ParseException {
-        Query query = new EmailIndex().getQuery("Historical");
+        Query query = emailIndex.getQuery("Historical");
         SearchTask task = new SearchTask(query, "query-2", "subquery-1", "path/to/s3",indexFilePath);
         searchExecutorService.submit(task).get();
 
