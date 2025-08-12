@@ -52,17 +52,14 @@ public class IndexDownloader {
             try {
                 InputStream indexInputStream = s3IndexLocation.downloadAsStream(queryId);
                 Path indexDirectory = unzipToDirectory(indexInputStream, queryId);
-                System.out.println(String.format("Downloaded index %s from %s", indexDirectory.toAbsolutePath(), s3IndexLocation));
                 searchThreadPool.submit(new SearchTask(getQuery(searchTerm,new StandardAnalyzer()),
                                                             queryId,
                                                             subQueryId,
                                                             s3IndexLocation.toString(),
                                                             indexDirectory));
-                System.out.println("Line after submit search task to search thread pool:");
             } catch (IOException | ParseException  e) {
                 //log the exception for now, eventually this should add up as a metric to final results
                 //as a skipped/failed document search count
-                System.out.println("Exception aya hain");
                 logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "index url: " + s3IndexLocation);
             } finally {
                 numberOfVitrualThreadsSemaphore.release();
