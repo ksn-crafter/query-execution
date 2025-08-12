@@ -91,11 +91,4 @@ public class IndexDownloader {
         }
         return null;
     }
-
-    private static Query getQuery(String queryString, StandardAnalyzer analyzer) throws ParseException {
-        final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
-
-        MultiFieldQueryParser parser = new MultiFieldQueryParser(DOCUMENT_FIELDS, analyzer);
-        return parser.parse(queryString);
-    }
 }
