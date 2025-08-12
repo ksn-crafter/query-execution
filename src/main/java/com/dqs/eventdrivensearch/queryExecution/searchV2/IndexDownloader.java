@@ -1,5 +1,6 @@
 package com.dqs.eventdrivensearch.queryExecution.searchV2;
 
+import com.dqs.eventdrivensearch.queryExecution.model.SearchResult;
 import com.dqs.eventdrivensearch.queryExecution.model.SearchTask;
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import com.dqs.eventdrivensearch.queryExecution.searchV2.executors.SearchExecutorService;
@@ -9,16 +10,17 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.Query;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
 import java.io.*;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Level;
-
 
 @Component
 public class IndexDownloader {
@@ -27,7 +29,7 @@ public class IndexDownloader {
     private final SearchExecutorService searchThreadPool;
     private final ZippedIndex  zippedIndex;
     private final EmailIndex emailIndex = new EmailIndex();
-
+    private final Executor virtualThreadExecutor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().factory());
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(IndexDownloader.class.getName());
 
     public IndexDownloader(SearchExecutorService searchThreadPool,ZippedIndex zippedIndex, MetricsPublisher metricsPublisher, @Value("${number_of_virtual_threads_for_download}") int numberOfVirtualThreadsForDownload) {
@@ -37,43 +39,49 @@ public class IndexDownloader {
         this.zippedIndex = zippedIndex;
     }
 
-    public void downloadIndices(List<S3IndexLocation> s3IndexLocations, String queryId, String subQueryId, String searchTerm) {
+    public CompletableFuture<Void> downloadIndices(List<S3IndexLocation> s3IndexLocations, String queryId, String subQueryId, String searchTerm) {
         if(s3IndexLocations == null || s3IndexLocations.isEmpty()) {
             throw new IllegalArgumentException("s3Locations cannot be null or empty");
         }
-        for (S3IndexLocation s3Location : s3IndexLocations) {
-            downloadIndex(s3Location, queryId,subQueryId,searchTerm);
-        }
+        return CompletableFuture.allOf(
+                s3IndexLocations.stream()
+                        .map(loc -> downloadIndex(loc, queryId, subQueryId, searchTerm))
+                        .toArray(CompletableFuture[]::new)
+        );
     }
 
-    public void downloadIndex(S3IndexLocation s3IndexLocation, String queryId,String subQueryId,String searchTerm) {
-        numberOfVitrualThreadsSemaphore.acquireUninterruptibly();
-        Thread.startVirtualThread(() -> {
+    public CompletableFuture<Void> downloadIndex(S3IndexLocation s3IndexLocation, String queryId, String subQueryId, String searchTerm) {
+        return CompletableFuture.supplyAsync(() -> {
+            numberOfVitrualThreadsSemaphore.acquireUninterruptibly();
             try {
                 InputStream indexInputStream = s3IndexLocation.downloadAsStream(queryId);
                 Path indexDirectory = unzipToDirectory(indexInputStream, queryId);
-                searchThreadPool.submit(new SearchTask(emailIndex.getQuery(searchTerm),
-                                                            queryId,
-                                                            subQueryId,
-                                                            s3IndexLocation.toString(),
-                                                            indexDirectory));
-            } catch (IOException | ParseException  e) {
-                logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "index url: " + s3IndexLocation);
+
+                return searchThreadPool.submit(new SearchTask(
+                    emailIndex.getQuery(searchTerm),
+                    queryId,
+                    subQueryId,
+                    s3IndexLocation.toString(),
+                    indexDirectory
+                ));
+            } catch (IOException | ParseException e) {
+                logger.log(Level.SEVERE, e.getMessage(), e);
+                return CompletableFuture.<SearchResult>failedFuture(e);
             } finally {
                 numberOfVitrualThreadsSemaphore.release();
             }
-        });
+        }, virtualThreadExecutor)
+        .thenCompose(f -> f.thenApply(r -> null));
     }
 
     private Path unzipToDirectory(InputStream indexInputStream, String queryId) throws IOException {
         Instant start = Instant.now();
-        try {
-           return zippedIndex.unzip(indexInputStream);
+        try (indexInputStream) {
+            return zippedIndex.unzip(indexInputStream);
         } catch (IOException e) {
             logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "queryId: " + queryId);
         } finally {
             metricsPublisher.putMetricData(MetricsPublisher.MetricNames.UNZIP_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
-            indexInputStream.close();
         }
         return null;
     }

@@ -22,16 +22,17 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.concurrent.CompletableFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
@@ -101,17 +102,21 @@ public class IndexDownloaderIntegrationTests {
     }
 
     @Test
-    public void shouldDownloadAnIndexFromS3() throws InterruptedException, IOException, URISyntaxException {
-        List<S3IndexLocation> s3IndexLocations = List.of(s3IndexLocationFactory.create(s3IndexUrl));
-        indexDownloader.downloadIndices(s3IndexLocations, "123", "456", "test");
-        //TODO: what do I test here?
-    }
-
-    @Test
-    public void shouldDownloadMultipleIndicesFromS3() throws InterruptedException, IOException, URISyntaxException {
+    public void shouldDownloadIndicesPerformSearchAndWriteResultToS3() {
         List<S3IndexLocation> s3IndexLocations = List.of(s3IndexLocationFactory.create(s3IndexUrl), s3IndexLocationFactory.create(s3IndexUrl));
-        indexDownloader.downloadIndices(s3IndexLocations, "", "", "test");
-        //TODO: what do I test here
+        CompletableFuture<Void> allStepsFuture = indexDownloader.downloadIndices(s3IndexLocations, "query-1", "", "test");
+        allStepsFuture.join();
+
+        URI s3Uri = URI.create(s3IndexUrl);
+        String bucket = s3Uri.getHost().split("\\.")[0];
+        ListObjectsV2Response listResponse = s3Client.listObjectsV2(
+                ListObjectsV2Request.builder()
+                        .bucket(bucket)
+                        .prefix("result/query-1/")
+                        .build()
+        );
+
+        assertThat(listResponse.contents()).isNotEmpty();
     }
 
     @Test
