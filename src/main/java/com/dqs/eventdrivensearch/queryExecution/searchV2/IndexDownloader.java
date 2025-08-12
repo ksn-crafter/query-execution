@@ -26,10 +26,11 @@ public class IndexDownloader {
     private final Semaphore numberOfVitrualThreadsSemaphore;
     private final SearchExecutorService searchThreadPool;
     private final ZippedIndex  zippedIndex;
+    private final EmailIndex emailIndex = new EmailIndex();
 
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(IndexDownloader.class.getName());
 
-    public IndexDownloader(SearchExecutorService searchThreadPool,ZippedIndex zippedIndex,MetricsPublisher metricsPublisher, @Value("${number_of_virtual_threads_for_download:2}") int numberOfVirtualThreadsForDownload) {
+    public IndexDownloader(SearchExecutorService searchThreadPool,ZippedIndex zippedIndex, MetricsPublisher metricsPublisher, @Value("${number_of_virtual_threads_for_download:2}") int numberOfVirtualThreadsForDownload) {
         this.metricsPublisher = metricsPublisher;
         numberOfVitrualThreadsSemaphore = new Semaphore(numberOfVirtualThreadsForDownload);
         this.searchThreadPool = searchThreadPool;
@@ -51,7 +52,7 @@ public class IndexDownloader {
             try {
                 InputStream indexInputStream = s3IndexLocation.downloadAsStream(queryId);
                 Path indexDirectory = unzipToDirectory(indexInputStream, queryId);
-                searchThreadPool.submit(new SearchTask(getQuery(searchTerm,new StandardAnalyzer()),
+                searchThreadPool.submit(new SearchTask(emailIndex.getQuery(searchTerm),
                                                             queryId,
                                                             subQueryId,
                                                             s3IndexLocation.toString(),

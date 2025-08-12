@@ -1,12 +1,11 @@
 package com.dqs.eventdrivensearch.queryExecution.searchV2.executors;
 
 
+import com.dqs.eventdrivensearch.queryExecution.searchV2.EmailIndex;
 import com.dqs.eventdrivensearch.queryExecution.searchV2.IndexSearcher;
 import com.dqs.eventdrivensearch.queryExecution.model.SearchResult;
 import com.dqs.eventdrivensearch.queryExecution.model.SearchTask;
-import com.dqs.eventdrivensearch.queryExecution.search.utils.Utilities;
 import com.dqs.eventdrivensearch.queryExecution.searchV2.ZippedIndex;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.Query;
 import org.junit.jupiter.api.Assertions;
@@ -32,7 +31,6 @@ public class SearchExecutorServiceTest {
     @Autowired
     private SearchExecutorService searchExecutorService;
 
-
     static Path indexFilePath;
 
     @BeforeAll
@@ -46,7 +44,7 @@ public class SearchExecutorServiceTest {
 
     @Test
     void testSearchTaskExecution() throws ExecutionException, InterruptedException, ParseException {
-        Query query = Utilities.getQuery("Historical", new StandardAnalyzer());
+        Query query = new EmailIndex().getQuery("Historical");
         SearchTask task = new SearchTask(query, "query-1", "subquery-1", "path/to/s3",indexFilePath);
         CompletableFuture<SearchResult> result = searchExecutorService.submit(task);
         Assertions.assertEquals(1048, result.get().totalHits());
