@@ -41,14 +41,19 @@ public class IndexDownloader {
     }
 
     public CompletableFuture<Void> downloadIndices(List<S3IndexLocation> s3IndexLocations, String queryId, String subQueryId, String searchTerm) {
+        Instant start = Instant.now();
+
         if(s3IndexLocations == null || s3IndexLocations.isEmpty()) {
             throw new IllegalArgumentException("s3Locations cannot be null or empty");
         }
-        return CompletableFuture.allOf(
+        CompletableFuture<Void> result = CompletableFuture.allOf(
                 s3IndexLocations.stream()
                         .map(loc -> downloadIndex(loc, queryId, subQueryId, searchTerm))
                         .toArray(CompletableFuture[]::new)
         );
+        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.INTERNAL_SEARCH_TIME, Duration.between(start, Instant.now()).toMillis(), queryId);
+        metricsPublisher.publishToCloudWatch();
+        return result;
     }
 
     public CompletableFuture<Void> downloadIndex(S3IndexLocation s3IndexLocation, String queryId, String subQueryId, String searchTerm) {
