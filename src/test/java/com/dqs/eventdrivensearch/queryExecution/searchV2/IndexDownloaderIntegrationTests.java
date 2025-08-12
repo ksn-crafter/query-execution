@@ -3,7 +3,6 @@ package com.dqs.eventdrivensearch.queryExecution.searchV2;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -54,13 +53,6 @@ public class IndexDownloaderIntegrationTests {
 
     @Autowired
     private S3IndexLocationFactory s3IndexLocationFactory;
-
-
-    @Value("${number_of_virtual_threads_for_download}")
-    private int numberOfVirtualThreadsForDownload;
-
-    @Value("${number_of_downloaded_indexes_in_queue}")
-    private int numberOfDownloadedIndexesInQueue;
 
     private final String s3IndexUrl = "https://test-bucket/128MB-chunks/part-00000-0001a714-1dc6-443f-98f5-1a27c467863b-c000.json.gz";
 

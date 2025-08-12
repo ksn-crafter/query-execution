@@ -13,6 +13,6 @@ single_index_searcher_count: ${INDEX_FILES_COUNT:64}
 cloudwatch_namespace: ${CLOUDWATCH_NAMESPACE:DQS}
 output_folder_path: ${OUTPUT_FOLDER_PATH:https://test-bucket.s3.us-east-1.amazonaws.com/result}
 tenants: ${TENANTS}
-index_searcher_pool_size: ${INDEX_SEARCHER_POOL_SIZE:2}
-number_of_virtual_threads_for_download: ${NUMBER_OF_VIRTUAL_THREADS_FOR_DOWNLOAD:2}
-number_of_downloaded_indexes_in_queue: ${NUMBER_OF_DOWNLOADED_INDEXES_IN_QUEUE:2}
+index_searcher_pool_size: ${INDEX_SEARCHER_POOL_SIZE:1}
+number_of_virtual_threads_for_download: ${NUMBER_OF_VIRTUAL_THREADS_FOR_DOWNLOAD:4}
+number_of_virtual_threads_for_write: ${NUMBER_OF_VIRTUAL_THREADS_FOR_WRITE:1}

@@ -41,6 +41,12 @@ spec:
             value: {{ $.Values.CLOUDWATCH_NAMESPACE}}
           - name: OUTPUT_FOLDER_PATH
             value: {{ $.Values.OUTPUT_FOLDER_PATH}}
+          - name: NUMBER_OF_VIRTUAL_THREADS_FOR_DOWNLOAD
+            value: "{{ $.Values.NUMBER_OF_VIRTUAL_THREADS_FOR_DOWNLOAD }}"
+          - name: INDEX_SEARCHER_POOL_SIZE
+            value: "{{ $.Values.INDEX_SEARCHER_POOL_SIZE }}"
+          - name: NUMBER_OF_VIRTUAL_THREADS_FOR_WRITE
+            value: "{{ $.Values.NUMBER_OF_VIRTUAL_THREADS_FOR_WRITE }}"
           - name: TENANTS
             value: {{.}}
         resources:
