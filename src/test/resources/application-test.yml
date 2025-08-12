@@ -1,1 +1,5 @@
 tenants: jpmc
+output_folder_path: https://test-bucket.s3.us-east-1.amazonaws.com/result
+index_searcher_pool_size: 2
+number_of_virtual_threads_for_download: 2
+number_of_downloaded_indexes_in_queue: 2

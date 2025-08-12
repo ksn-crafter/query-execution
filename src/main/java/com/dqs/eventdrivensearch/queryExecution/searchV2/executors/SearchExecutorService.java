@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
@@ -24,8 +23,8 @@ public class SearchExecutorService {
 
     private final ExecutorService executorService;
 
-    public SearchExecutorService(@Value("${index_searcher_pool_size:2}") int poolSize) {
-        this.executorService = Executors.newFixedThreadPool(poolSize);
+    public SearchExecutorService(@Value("${index_searcher_pool_size}") int poolSize) {
+        this.executorService = Executors.newWorkStealingPool(poolSize);
     }
 
     public CompletableFuture<SearchResult> submit(SearchTask task) {

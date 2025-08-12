@@ -27,7 +27,6 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -56,10 +55,10 @@ public class IndexDownloaderIntegrationTests {
     private S3IndexLocationFactory s3IndexLocationFactory;
 
 
-    @Value("${number_of_virtual_threads_for_download:2}")
+    @Value("${number_of_virtual_threads_for_download}")
     private int numberOfVirtualThreadsForDownload;
 
-    @Value("${number_of_downloaded_indexes_in_queue:2}")
+    @Value("${number_of_downloaded_indexes_in_queue}")
     private int numberOfDownloadedIndexesInQueue;
 
     private final String s3IndexUrl = "https://test-bucket/128MB-chunks/part-00000-0001a714-1dc6-443f-98f5-1a27c467863b-c000.json.gz";

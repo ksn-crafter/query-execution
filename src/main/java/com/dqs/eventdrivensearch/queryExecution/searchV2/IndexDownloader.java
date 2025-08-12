@@ -30,7 +30,7 @@ public class IndexDownloader {
 
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(IndexDownloader.class.getName());
 
-    public IndexDownloader(SearchExecutorService searchThreadPool,ZippedIndex zippedIndex, MetricsPublisher metricsPublisher, @Value("${number_of_virtual_threads_for_download:2}") int numberOfVirtualThreadsForDownload) {
+    public IndexDownloader(SearchExecutorService searchThreadPool,ZippedIndex zippedIndex, MetricsPublisher metricsPublisher, @Value("${number_of_virtual_threads_for_download}") int numberOfVirtualThreadsForDownload) {
         this.metricsPublisher = metricsPublisher;
         numberOfVitrualThreadsSemaphore = new Semaphore(numberOfVirtualThreadsForDownload);
         this.searchThreadPool = searchThreadPool;
