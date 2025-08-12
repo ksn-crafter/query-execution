@@ -5,6 +5,7 @@ import com.dqs.eventdrivensearch.queryExecution.searchV2.IndexSearcher;
 import com.dqs.eventdrivensearch.queryExecution.model.SearchResult;
 import com.dqs.eventdrivensearch.queryExecution.model.SearchTask;
 import com.dqs.eventdrivensearch.queryExecution.search.utils.Utilities;
+import com.dqs.eventdrivensearch.queryExecution.searchV2.ZippedIndex;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.Query;
@@ -35,15 +36,14 @@ public class SearchExecutorServiceTest {
     @Autowired
     private SearchExecutorService searchExecutorService;
 
+
     static Path indexFilePath;
 
     @BeforeAll
     static void setup() throws IOException {
-
-
+        ZippedIndex zippedIndex = new ZippedIndex();
         try (InputStream inputStream = SearchExecutorServiceTest.class.getClassLoader().getResourceAsStream("sample.zip")) {
-            indexFilePath = Files.createTempDirectory("tempDirPrefix-");
-            readAndUnzipInDirectory(inputStream, indexFilePath);
+            indexFilePath = zippedIndex.unzip(inputStream);
         }
     }
 
