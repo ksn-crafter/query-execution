@@ -34,6 +34,8 @@ public class MultipleIndexSearcher {
 
     private final List<S3SearchResultWriter> s3SearchResultWriters;
 
+    private final ExecutorService executorService;
+
     public MultipleIndexSearcher(ApplicationContext context,
                                  MetricsPublisher metricsPublisher,
                                  @Value("${single_index_searcher_count}")
@@ -44,6 +46,7 @@ public class MultipleIndexSearcher {
 
         singleIndexSearchers = new ArrayList<>();
         s3SearchResultWriters = new ArrayList<>();
+        executorService = Executors.newWorkStealingPool(Runtime.getRuntime().availableProcessors() - 1);
 
         for (int idx = 0; idx < singleIndexSearcherCount; idx++) {
             singleIndexSearchers.add(context.getBean(SingleIndexSearcher.class));
@@ -98,7 +101,7 @@ public class MultipleIndexSearcher {
 
     public void searchV2(String searchQueryString, String queryId, String[] indexPaths, String subQueryId) throws ParseException {
         Instant start = Instant.now();
-
+        List<Future<?>> searchTasks = new ArrayList<>();
         try {
             final String queryResultLocation = outputFolderPath.endsWith("/")
                     ? outputFolderPath + queryId
@@ -110,17 +113,24 @@ public class MultipleIndexSearcher {
                 String indexPath = indexPaths[idx];
                 S3SearchResultWriter s3SearchResultWriter = s3SearchResultWriters.get(idx);
                 var query = singleIndexSearcher.getQuery(searchQueryString, new StandardAnalyzer());
+                var task = executorService.submit(() -> {
+                    try {
+                        searchOnSplits(queryResultLocation, indexPath, singleIndexSearcher, query, queryId, s3SearchResultWriter);
+                    } catch (IOException | ParseException e) {
+                        System.out.printf("SearchV2 for split path %s has failed. The query id is %s and sub query id is %s%n", indexPath, queryId, subQueryId);
+                        logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "indexPath: " + indexPath);
+                        throw new RuntimeException(e);
+                    }
+                });
 
-                try {
-                    searchOnSplits(queryResultLocation, indexPath, singleIndexSearcher, query, queryId, s3SearchResultWriter);
-                } catch (IOException | ParseException e) {
-                    System.out.printf("SearchV2 for split path %s has failed. The query id is %s and sub query id is %s%n", indexPath, queryId, subQueryId);
-                    logger.log(Level.SEVERE, e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()) + "\n" + "indexPath: " + indexPath);
-                    throw new RuntimeException(e);
-                }
+                searchTasks.add(task);
             }
+
+            for (Future task : searchTasks) {
+                while (!task.isDone()) ;
+            }
+
         } catch (Exception e) {
-//            System.out.println(e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()));
             e.printStackTrace();
             throw e;
         } finally {
