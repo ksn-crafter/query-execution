@@ -13,8 +13,6 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Arrays;
 
 @Component
@@ -40,12 +38,12 @@ public class SubQueryGeneratedConsumer {
     /**
      * Spring will create a method called poll (or equivalent) around consume -- pseudocode
      * void poll() {
-     *      while(true) {
-     *          List<SubQueryGenerated> records = poll(); -> polling kafka
-     *          for (SubQueryGenerated record: records) {
-     *              consume(record);
-     *          }
-     *      }
+     * while(true) {
+     * List<SubQueryGenerated> records = poll(); -> polling kafka
+     * for (SubQueryGenerated record: records) {
+     * consume(record);
+     * }
+     * }
      * }
      * In one poll, kafka consumer (or spring's kafka consumer) will poll max.poll.records, records.
      * In our case, we are polling 125 records, each record is taking 7.88 seconds + 2 seconds (buffer + mongo) = ~10 seconds
@@ -61,28 +59,43 @@ public class SubQueryGeneratedConsumer {
         if (savedSubQuery) {
             search(subQueryGenerated, queryDescription);
         }
-        Instant now = Instant.now();
-        queryStatusService.mayBeCompleteTheQuery(subQueryGenerated.queryId(), subQueryGenerated.subQueryId());
-        System.out.printf("Time to (maybe) update query %s is %d ms \n", subQueryGenerated.queryId(), Duration.between(now, Instant.now()).toMillis());
     }
 
     private void search(SubQueryGenerated subQueryGenerated, QueryDescription queryDescription) {
-        System.out.println(String.format("Sub Query with id %s, having query id %s, for tenant %s has been saved to mongo", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()));
+        System.out.printf(
+                "Sub Query with id %s, having query id %s, for tenant %s has been saved to mongo%n",
+                subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()
+        );
+
         try {
-            indexDownloader.downloadIndices(Arrays.stream(subQueryGenerated.indexPaths()).map(indexPath -> {
-                try {
-                    return new S3IndexLocation(indexPath,s3Client,metricsPublisher);
-                } catch (URISyntaxException | MalformedURLException e) {
-                    throw new RuntimeException(e);
-                }
-            }).toList(), subQueryGenerated.queryId(), subQueryGenerated.subQueryId(), queryDescription.term());
-            System.out.println(String.format("Search for Sub Query with id %s having query id %s for tenant %s is completed", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()));
+            indexDownloader.downloadIndices(
+                    Arrays.stream(subQueryGenerated.indexPaths())
+                            .map(indexPath -> {
+                                try {
+                                    return new S3IndexLocation(indexPath, s3Client, metricsPublisher);
+                                } catch (URISyntaxException | MalformedURLException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            })
+                            .toList(),
+                    subQueryGenerated.queryId(),
+                    subQueryGenerated.subQueryId(),
+                    queryDescription.term()
+            ).thenRun(() -> {
+                queryStatusService.mayBeCompleteTheQuery(subQueryGenerated.queryId(), subQueryGenerated.subQueryId());
+                System.out.printf(
+                        "Search for Sub Query with id %s having query id %s for tenant %s is completed%n",
+                        subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()
+                );
+            });
         } catch (Exception e) {
-            System.out.println(String.format("Search for Sub Query with id %s having query id %s for tenant %s has an error.", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()));
-            System.out.println(e.getMessage() + "\n" + e.getStackTrace().toString());
+            System.out.println(e);
+            System.out.printf(
+                    "Search for Sub Query with id %s having query id %s for tenant %s has an error.%n",
+                    subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()
+            );
             return;
         }
-        //subQueryExecutedProducer.produce(new SubQueryExecuted(subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.totalSubQueries(), LocalDateTime.now(), subQueryGenerated.tenant()), queryDescription.tenant());
-        System.out.println(String.format("Event for Sub Query with id %s having query id %s for tenant %s is produced", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()));
     }
+
 }
