@@ -12,10 +12,15 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.services.s3.S3Client;
+
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -27,9 +32,9 @@ import java.util.zip.ZipInputStream;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 class SingleIndexSearcher {
-    private final S3IndexDownloader s3IndexDownloader;
+    private S3IndexDownloader s3IndexDownloader;
 
-    private final MetricsPublisher metricsPublisher;
+    private MetricsPublisher metricsPublisher;
 
     public SingleIndexSearcher(MetricsPublisher metricsPublisher, S3IndexDownloader s3IndexDownloader) {
         this.metricsPublisher = metricsPublisher;
@@ -39,7 +44,11 @@ class SingleIndexSearcher {
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
     SearchResult search(String zipFilePath, Query query, String queryId) throws IOException {
-        Directory directory = downloadZipAndUnzipInDirectory(zipFilePath, queryId);
+        Path targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
+        Directory directory = null;
+
+        downloadZipAndUnzipInDirectory(zipFilePath, targetTempDirectory, queryId);
+        directory = new MMapDirectory(targetTempDirectory);
 
         Instant start = Instant.now();
         // Verify the index by searching
@@ -48,6 +57,8 @@ class SingleIndexSearcher {
 
         SearchResult searchResult = readResults(searcher, query);
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
+
+        deleteTempDirectory(targetTempDirectory.toFile());
 
         return searchResult;
     }
@@ -63,8 +74,10 @@ class SingleIndexSearcher {
         }
     }
 
-    private Directory downloadZipAndUnzipInDirectory(String zipFilePath, String queryId) throws IOException {
-        Directory memDir = new ByteBuffersDirectory();
+    private void downloadZipAndUnzipInDirectory(String zipFilePath, Path outputDir, String queryId) throws IOException {
+        if (!Files.exists(outputDir)) {
+            Files.createDirectories(outputDir);
+        }
 
         InputStream inputStream = s3IndexDownloader.getInputStream(zipFilePath, queryId);
         Instant start = Instant.now();
@@ -74,13 +87,18 @@ class SingleIndexSearcher {
             byte[] zipStreamBuffer = new byte[OPTIMAL_STREAM_BUFFER_SIZE];
             ZipEntry entry;
             while ((entry = zipIn.getNextEntry()) != null) {
+                Path filePath = outputDir.resolve(entry.getName());
                 if (!entry.isDirectory()) {
-                    try (IndexOutput output = memDir.createOutput(entry.getName(), IOContext.DEFAULT)) {
+                    // Extract file
+                    try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath.toFile()), OPTIMAL_STREAM_BUFFER_SIZE)) {
                         int len;
                         while ((len = zipIn.read(zipStreamBuffer)) > 0) {
-                            output.writeBytes(zipStreamBuffer, 0, len);
+                            bos.write(zipStreamBuffer, 0, len);
                         }
                     }
+                } else {
+                    // Create directory
+                    Files.createDirectories(filePath);
                 }
                 zipIn.closeEntry();
             }
@@ -88,8 +106,6 @@ class SingleIndexSearcher {
             inputStream.close();
         }
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.UNZIP_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
-
-        return memDir;
     }
 
     private SearchResult readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {
