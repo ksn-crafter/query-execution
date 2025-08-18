@@ -24,6 +24,8 @@ public class DirectoryCache {
 
     @Autowired
     S3IndexDownloader s3IndexDownloader;
+    private static final String BASE_URL =
+            "https://dqs-poc-indexes.s3.us-east-1.amazonaws.com/zip_indexes/128MB/";
 
     String[] indexPaths = {
             "part-00001-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
@@ -90,13 +92,12 @@ public class DirectoryCache {
             "part-00000-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
             "part-00002-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
             "part-00000-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip"
-
     };
 
     @PostConstruct
     public void fillCache() {
         for (String indexPath : indexPaths) {
-            cache.put(indexPath, loadDirectoryFromZip(indexPath));
+            cache.put(indexPath, loadDirectoryFromZip(BASE_URL + indexPath));
         }
     }
 
