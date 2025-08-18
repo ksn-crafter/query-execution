@@ -1,5 +1,6 @@
 package com.dqs.eventdrivensearch.queryExecution.search.index;
 
+import com.dqs.eventdrivensearch.queryExecution.search.index.cache.DirectoryCache;
 import com.dqs.eventdrivensearch.queryExecution.search.io.S3IndexDownloader;
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
@@ -12,6 +13,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -27,6 +29,10 @@ import java.util.zip.ZipInputStream;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 class SingleIndexSearcher {
+
+    @Autowired
+    private DirectoryCache directoryCache;
+
     private final S3IndexDownloader s3IndexDownloader;
 
     private final MetricsPublisher metricsPublisher;
@@ -39,7 +45,13 @@ class SingleIndexSearcher {
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
     SearchResult search(String zipFilePath, Query query, String queryId) throws IOException {
-        Directory directory = downloadZipAndUnzipInDirectory(zipFilePath, queryId);
+
+        Directory directory = directoryCache.get(zipFilePath);
+
+        if(directory == null) {
+            System.out.println("It's a cache miss for path : " + zipFilePath);
+            directory = downloadZipAndUnzipInDirectory(zipFilePath, queryId);
+        }
 
         Instant start = Instant.now();
         // Verify the index by searching
