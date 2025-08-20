@@ -1,5 +1,6 @@
 package com.dqs.eventdrivensearch.queryExecution.search.index;
 
+import com.dqs.eventdrivensearch.queryExecution.search.index.cache.DirectoryCache;
 import com.dqs.eventdrivensearch.queryExecution.search.io.S3IndexDownloader;
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
@@ -16,7 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import software.amazon.awssdk.services.s3.S3Client;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -32,6 +32,10 @@ import java.util.zip.ZipInputStream;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 class SingleIndexSearcher {
+
+    @Autowired
+    DirectoryCache directoryCache;
+
     private S3IndexDownloader s3IndexDownloader;
 
     private MetricsPublisher metricsPublisher;
@@ -44,11 +48,14 @@ class SingleIndexSearcher {
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
     SearchResult search(String zipFilePath, Query query, String queryId) throws IOException {
-        Path targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
-        Directory directory = null;
+        Directory directory = directoryCache.get(zipFilePath);
 
-        downloadZipAndUnzipInDirectory(zipFilePath, targetTempDirectory, queryId);
-        directory = new MMapDirectory(targetTempDirectory);
+        if(directory == null){
+            System.out.println("Its a cache miss for indexPath : " + zipFilePath);
+            Path targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
+            downloadZipAndUnzipInDirectory(zipFilePath, targetTempDirectory, queryId);
+            directory = new MMapDirectory(targetTempDirectory);
+        }
 
         Instant start = Instant.now();
         // Verify the index by searching
@@ -57,8 +64,6 @@ class SingleIndexSearcher {
 
         SearchResult searchResult = readResults(searcher, query);
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
-
-        deleteTempDirectory(targetTempDirectory.toFile());
 
         return searchResult;
     }
@@ -107,6 +112,8 @@ class SingleIndexSearcher {
         }
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.UNZIP_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
     }
+
+
 
     private SearchResult readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {
 
