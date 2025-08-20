@@ -29,6 +29,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.io.IOException;
@@ -67,6 +68,17 @@ public class SubQueryServiceIntegrationTests {
                     .region(Region.US_EAST_1)
                     .build();
         }
+
+        @Bean
+        @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
+        @Primary
+        public S3AsyncClient s3AsyncClient() {
+            return S3AsyncClient.crtBuilder()
+                    .region(Region.US_EAST_1)
+                    .minimumPartSizeInBytes(4 * 1024 * 1024L)
+                    .build();
+        }
+
 
         @Bean
         @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
