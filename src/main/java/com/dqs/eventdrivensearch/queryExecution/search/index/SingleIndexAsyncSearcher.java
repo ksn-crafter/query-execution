@@ -1,8 +1,8 @@
 package com.dqs.eventdrivensearch.queryExecution.search.index;
 
+
 import com.dqs.eventdrivensearch.queryExecution.search.index.cache.DirectoryCache;
 import com.dqs.eventdrivensearch.queryExecution.search.io.S3AsyncIndexDownloader;
-import com.dqs.eventdrivensearch.queryExecution.search.io.S3IndexDownloader;
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
 import com.dqs.eventdrivensearch.queryExecution.search.model.SearchResult;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -33,30 +33,29 @@ import java.util.zip.ZipInputStream;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-class SingleIndexSearcher {
+class SingleIndexAsyncSearcher {
 
     @Autowired
     private DirectoryCache directoryCache;
 
-
-    private final S3IndexDownloader s3IndexDownloader;
-
+    private final S3AsyncIndexDownloader s3AsyncIndexDownloader;
     private final MetricsPublisher metricsPublisher;
 
-    public SingleIndexSearcher(MetricsPublisher metricsPublisher, S3IndexDownloader s3IndexDownloader) {
+    public SingleIndexAsyncSearcher(MetricsPublisher metricsPublisher, S3AsyncIndexDownloader s3IndexAsyncDownloader) {
         this.metricsPublisher = metricsPublisher;
-        this.s3IndexDownloader = s3IndexDownloader;
+        this.s3AsyncIndexDownloader = s3IndexAsyncDownloader;
     }
 
     private static final String[] DOCUMENT_FIELDS = {"body", "subject", "date", "from", "to", "cc", "bcc"};
 
-    SearchResult search(String zipFilePath, Query query, String queryId) throws IOException {
+    CompletableFuture<SearchResult> search(String zipFilePath, Query query, String queryId) throws IOException {
 
         Directory directory = directoryCache.get(zipFilePath);
 
-        if(directory == null) {
+        if (directory == null) {
             System.out.println("It's a cache miss for path : " + zipFilePath);
-            directory = downloadZipAndUnzipInDirectory(zipFilePath, queryId);
+            Path targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
+            return downloadZipAndUnzipInDirectory(zipFilePath, targetTempDirectory, queryId, query);
         }
 
         Instant start = Instant.now();
@@ -67,37 +66,55 @@ class SingleIndexSearcher {
         SearchResult searchResult = readResults(searcher, query);
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
 
-        return searchResult;
+        return CompletableFuture.completedFuture(searchResult);
     }
 
-
-    private Directory downloadZipAndUnzipInDirectory(String zipFilePath, String queryId) throws IOException {
-        Directory memDir = new ByteBuffersDirectory();
-
-        InputStream inputStream = s3IndexDownloader.getInputStream(zipFilePath, queryId);
-        Instant start = Instant.now();
-
-        final int OPTIMAL_STREAM_BUFFER_SIZE = 1048576;
-        try (ZipInputStream zipIn = new ZipInputStream(new BufferedInputStream(inputStream, OPTIMAL_STREAM_BUFFER_SIZE))) {
-            byte[] zipStreamBuffer = new byte[OPTIMAL_STREAM_BUFFER_SIZE];
-            ZipEntry entry;
-            while ((entry = zipIn.getNextEntry()) != null) {
-                if (!entry.isDirectory()) {
-                    try (IndexOutput output = memDir.createOutput(entry.getName(), IOContext.DEFAULT)) {
-                        int len;
-                        while ((len = zipIn.read(zipStreamBuffer)) > 0) {
-                            output.writeBytes(zipStreamBuffer, 0, len);
-                        }
-                    }
-                }
-                zipIn.closeEntry();
-            }
-        } finally {
-            inputStream.close();
+    private CompletableFuture<SearchResult> downloadZipAndUnzipInDirectory(String zipFilePath, Path outputDir, String queryId, Query query) throws IOException {
+        if (!Files.exists(outputDir)) {
+            Files.createDirectories(outputDir);
         }
-        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.UNZIP_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
 
-        return memDir;
+        return s3AsyncIndexDownloader.downloadAndUnzipToByteBuffer(zipFilePath, queryId, outputDir).
+                handle((directory, throwable) -> {
+                    if (throwable != null) {
+                        throw new RuntimeException(throwable.getMessage());
+                    }
+
+
+                    SearchResult searchResult = null;
+                    try {
+
+                        Instant start = Instant.now();
+                        DirectoryReader reader = DirectoryReader.open(directory);
+                        org.apache.lucene.search.IndexSearcher searcher = new org.apache.lucene.search.IndexSearcher(reader);
+
+                        searchResult = readResults(searcher, query);
+                        metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
+
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    return searchResult;
+                });
+    }
+
+    private void deleteTempDirectory(File directory) {
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (!file.isDirectory()) {
+                    file.delete();
+                }
+            }
+        }
+    }
+
+    private void deleteDownloadedFile(Path targetTempDirectory) {
+        File file = new File(targetTempDirectory.toAbsolutePath() + ".zip");
+        if (file.exists()) {
+            file.delete();
+        }
     }
 
     private SearchResult readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {
@@ -142,3 +159,4 @@ class SingleIndexSearcher {
         return parser.parse(queryString);
     }
 }
+

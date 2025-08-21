@@ -31,6 +31,7 @@
         <lucene.version>9.12.0</lucene.version>
         <aws.s3.version>2.27.21</aws.s3.version>
         <commons.compress.version>1.26.1</commons.compress.version>
+        <aws.s3.crt.version>0.34.0</aws.s3.crt.version>
     </properties>
 
     <dependencyManagement>
@@ -139,6 +140,12 @@
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk.crt</groupId>
+            <artifactId>aws-crt</artifactId>
+            <version>${aws.s3.crt.version}</version>
         </dependency>
 
 

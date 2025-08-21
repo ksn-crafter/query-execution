@@ -20,6 +20,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
@@ -64,6 +65,18 @@ public class MultipleIndexSearcherIntegrationTests {
                     .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localStack.getAccessKey(),localStack.getSecretKey())))
                     .build();
         }
+
+
+        @Bean
+        @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
+        @Primary
+        public S3AsyncClient s3AsyncClient() {
+            return S3AsyncClient.crtBuilder()
+                    .region(Region.US_EAST_1)
+                    .minimumPartSizeInBytes(4 * 1024 * 1024L)
+                    .build();
+        }
+
 
         @Bean
         @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)

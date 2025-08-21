@@ -4,6 +4,7 @@ import com.dqs.eventdrivensearch.queryExecution.event.SubQueryGenerated;
 import com.dqs.eventdrivensearch.queryExecution.model.QueryDescription;
 import com.dqs.eventdrivensearch.queryExecution.model.SubQuery;
 import com.dqs.eventdrivensearch.queryExecution.producer.SubQueryExecutedProducer;
+import com.dqs.eventdrivensearch.queryExecution.search.index.MultipleIndexAsyncSearcher;
 import com.dqs.eventdrivensearch.queryExecution.search.index.MultipleIndexSearcher;
 import com.dqs.eventdrivensearch.queryExecution.services.QueryDescriptionService;
 import com.dqs.eventdrivensearch.queryExecution.services.QueryStatusService;
@@ -16,16 +17,19 @@ import java.time.Instant;
 public class SubQueryGeneratedConsumer {
     private final QueryDescriptionService queryDescriptionService;
     private final MultipleIndexSearcher multipleIndexSearcher;
+    private final MultipleIndexAsyncSearcher multipleIndexAsyncSearcher;
     private final SubQueryExecutedProducer subQueryExecutedProducer;
     private final QueryStatusService queryStatusService;
 
+
     public SubQueryGeneratedConsumer(QueryDescriptionService queryDescriptionService,
                                      SubQueryExecutedProducer producer,
-                                     MultipleIndexSearcher multipleIndexSearcher,
+                                     MultipleIndexSearcher multipleIndexSearcher, MultipleIndexAsyncSearcher multipleIndexAsyncSearcher,
                                      QueryStatusService queryStatusService) {
         this.queryDescriptionService = queryDescriptionService;
         this.multipleIndexSearcher = multipleIndexSearcher;
         this.subQueryExecutedProducer = producer;
+        this.multipleIndexAsyncSearcher = multipleIndexAsyncSearcher;
         this.queryStatusService = queryStatusService;
     }
 
@@ -61,7 +65,7 @@ public class SubQueryGeneratedConsumer {
     private void search(SubQueryGenerated subQueryGenerated, QueryDescription queryDescription) {
         System.out.println(String.format("Sub Query with id %s, having query id %s, for tenant %s has been saved to mongo", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()));
         try {
-            multipleIndexSearcher.search(queryDescription.term(), subQueryGenerated.queryId(), subQueryGenerated.indexPaths(), subQueryGenerated.subQueryId());
+            multipleIndexAsyncSearcher.search(queryDescription.term(), subQueryGenerated.queryId(), subQueryGenerated.indexPaths(), subQueryGenerated.subQueryId());
             System.out.println(String.format("Search for Sub Query with id %s having query id %s for tenant %s is completed", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()));
         } catch (Exception e) {
             System.out.println(String.format("Search for Sub Query with id %s having query id %s for tenant %s has an error.", subQueryGenerated.subQueryId(), subQueryGenerated.queryId(), subQueryGenerated.tenant()));

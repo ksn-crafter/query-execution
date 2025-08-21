@@ -1,9 +1,9 @@
 package com.dqs.eventdrivensearch.queryExecution.search.index.cache;
 
-import com.dqs.eventdrivensearch.queryExecution.search.index.Directory.MemorySegmentDirectory;
 import com.dqs.eventdrivensearch.queryExecution.search.io.S3IndexDownloader;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexOutput;
@@ -95,7 +95,7 @@ public class DirectoryCache {
     };*/
 
     String[] indexPaths = {
-            /*"part-00002-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
+  /*          "part-00002-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
             "part-00001-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
             "part-00000-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
             "part-00000-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",*/
@@ -123,7 +123,7 @@ public class DirectoryCache {
     }
 
     private Directory downloadZipAndUnzipInDirectory(String zipFilePath) throws IOException {
-        Directory byteBuffersDirectory = new MemorySegmentDirectory();
+        Directory byteBuffersDirectory = new ByteBuffersDirectory();
 
         InputStream inputStream = s3IndexDownloader.getInputStream(zipFilePath, "startup");
 
