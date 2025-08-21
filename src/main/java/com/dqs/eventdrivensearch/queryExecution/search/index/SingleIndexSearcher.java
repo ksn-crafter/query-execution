@@ -1,5 +1,6 @@
 package com.dqs.eventdrivensearch.queryExecution.search.index;
 
+import com.dqs.eventdrivensearch.queryExecution.search.index.Directory.MemorySegmentDirectory;
 import com.dqs.eventdrivensearch.queryExecution.search.index.cache.DirectoryCache;
 import com.dqs.eventdrivensearch.queryExecution.search.io.S3IndexDownloader;
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
@@ -76,7 +77,7 @@ class SingleIndexSearcher {
     }
 
     private Directory downloadZipAndUnzipInDirectory(String zipFilePath, String queryId) throws IOException {
-        Directory memDir = new ByteBuffersDirectory();
+        Directory memDir = new MemorySegmentDirectory();
 
         InputStream inputStream = s3IndexDownloader.getInputStream(zipFilePath, queryId);
         Instant start = Instant.now();

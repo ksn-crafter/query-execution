@@ -43,6 +43,8 @@ spec:
             value: {{ $.Values.OUTPUT_FOLDER_PATH}}
           - name: TENANTS
             value: {{.}}
+          - name: JAVA_TOOL_OPTIONS
+            value: "--enable-preview"
         resources:
           requests:
             cpu: 7

@@ -72,7 +72,7 @@ public class MultipleIndexSearcher {
                 var task = executorService.submit(() -> {
                     try {
                         searchOnSingleIndex(queryResultLocation, filePath, singleIndexSearcher, query, queryId, s3SearchResultWriter);
-                    } catch (IOException | ParseException e) {
+                    } catch (Exception e) {
                         System.out.println(String.format("Search for file %s has failed. The query id is %s and sub query id is %s", filePath, queryId, subQueryId));
                         logger.log(Level.WARNING, e.getMessage() + "\n" + e.getStackTrace() + "\n" + "filePath: " + filePath);
                         throw new RuntimeException(e);
