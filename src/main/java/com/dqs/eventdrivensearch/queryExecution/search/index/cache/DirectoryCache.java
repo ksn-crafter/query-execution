@@ -24,14 +24,15 @@ public class DirectoryCache {
     S3IndexDownloader s3IndexDownloader;
 
     @Value("${s3_index_url_prefix}")
-    private static String indexUrlPrefix;
+    private String indexUrlPrefix;
 
-    String[] indexPaths = {};
+    String[] indexPaths = {"part-00000-0001a714-1dc6-443f-98f5-1a27c467863b-c0003594936504750669447.zip"};
 
     @PostConstruct
     public void fillCache() {
         for (String indexPath : indexPaths) {
             String path = indexUrlPrefix + indexPath;
+            System.out.println("Caching indexPath : " + path );
             cache.put(path, loadDirectoryFromZip(path));
         }
     }
@@ -51,10 +52,10 @@ public class DirectoryCache {
     }
 
     private Directory downloadZipAndCreateMMapDirectory(String zipFilePath) throws IOException {
-        Path outputDir = Files.createTempDirectory("tempDirPrefix-");
+        Path indexDirectory = Files.createTempDirectory("indexDir-");
 
-        if (!Files.exists(outputDir)) {
-            Files.createDirectories(outputDir);
+        if (!Files.exists(indexDirectory)) {
+            Files.createDirectories(indexDirectory);
         }
 
         InputStream inputStream = s3IndexDownloader.getInputStream(zipFilePath, "");
@@ -64,7 +65,7 @@ public class DirectoryCache {
             byte[] zipStreamBuffer = new byte[OPTIMAL_STREAM_BUFFER_SIZE];
             ZipEntry entry;
             while ((entry = zipIn.getNextEntry()) != null) {
-                Path filePath = outputDir.resolve(entry.getName());
+                Path filePath = indexDirectory.resolve(entry.getName());
                 if (!entry.isDirectory()) {
                     // Extract file
                     try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath.toFile()), OPTIMAL_STREAM_BUFFER_SIZE)) {
@@ -79,11 +80,13 @@ public class DirectoryCache {
                 }
                 zipIn.closeEntry();
             }
+        }catch(Exception e){
+            System.out.println( "Exception in caching path : " + zipFilePath + "\n" + e.getMessage() + " : " + e.getStackTrace());
         } finally {
             inputStream.close();
         }
 
-        return new MMapDirectory(outputDir);
+        return new MMapDirectory(indexDirectory);
     }
 
     private Directory downloadZipAndUnzipInDirectory(String zipFilePath) throws IOException {
