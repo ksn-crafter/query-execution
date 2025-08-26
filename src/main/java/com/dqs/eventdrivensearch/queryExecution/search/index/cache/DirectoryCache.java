@@ -5,12 +5,12 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.apache.lucene.store.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -22,87 +22,16 @@ public class DirectoryCache {
 
     @Autowired
     S3IndexDownloader s3IndexDownloader;
-    private static final String BASE_URL =
-            "https://dqs-poc-indexes.s3.us-east-1.amazonaws.com/zip_indexes/128MB/";
 
-//    String[] indexPaths = {
-//            "part-00001-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00001-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00002-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00003-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00002-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00002-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00002-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00000-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00000-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00001-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00000-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00000-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00002-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00000-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00002-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00000-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00001-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00001-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00002-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00002-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00002-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00000-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00001-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00003-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00001-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00000-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00003-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00003-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00002-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00001-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00001-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00002-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00000-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00001-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00000-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00002-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00003-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00001-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00000-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00002-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00000-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00000-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00000-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00000-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00002-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00000-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00002-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00000-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00000-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00003-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00000-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00002-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",
-//            "part-00000-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00001-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00002-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00001-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00003-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00003-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00001-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00000-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00002-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-//            "part-00000-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip",
-//            "part-00002-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-//            "part-00000-a38170e0-af09-4e18-998c-02ddaf6ec1f0-c000-index.zip"
-//    };
+    @Value("${s3_index_url_prefix}")
+    private static String indexUrlPrefix;
 
-    String[] indexPaths = {
-           /* "part-00002-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-            "part-00001-830cec59-95a3-4fe7-af17-50102ffaf10e-c000-index.zip",
-            "part-00000-1d899d5b-a92e-4ccd-a8db-39818db5e781-c000-index.zip",
-            "part-00000-b2b74b54-2968-433b-9f6c-4a07a2f964f9-c000-index.zip",*/
-    };
+    String[] indexPaths = {};
 
     @PostConstruct
     public void fillCache() {
         for (String indexPath : indexPaths) {
-            String path = BASE_URL + indexPath;
+            String path = indexUrlPrefix + indexPath;
             cache.put(path, loadDirectoryFromZip(path));
         }
     }
@@ -112,11 +41,49 @@ public class DirectoryCache {
     }
 
     private Directory loadDirectoryFromZip(String zipFilePath) {
+        //TODO: make this configurable between byte buffers and Mmap
         try {
-            return downloadZipAndUnzipInDirectory(zipFilePath);
+            //return downloadZipAndUnzipInDirectory(zipFilePath);
+            return downloadZipAndCreateMMapDirectory(zipFilePath);
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private Directory downloadZipAndCreateMMapDirectory(String zipFilePath) throws IOException {
+        Path outputDir = Files.createTempDirectory("tempDirPrefix-");
+
+        if (!Files.exists(outputDir)) {
+            Files.createDirectories(outputDir);
+        }
+
+        InputStream inputStream = s3IndexDownloader.getInputStream(zipFilePath, "");
+
+        final int OPTIMAL_STREAM_BUFFER_SIZE = 1048576;
+        try (ZipInputStream zipIn = new ZipInputStream(new BufferedInputStream(inputStream, OPTIMAL_STREAM_BUFFER_SIZE))) {
+            byte[] zipStreamBuffer = new byte[OPTIMAL_STREAM_BUFFER_SIZE];
+            ZipEntry entry;
+            while ((entry = zipIn.getNextEntry()) != null) {
+                Path filePath = outputDir.resolve(entry.getName());
+                if (!entry.isDirectory()) {
+                    // Extract file
+                    try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath.toFile()), OPTIMAL_STREAM_BUFFER_SIZE)) {
+                        int len;
+                        while ((len = zipIn.read(zipStreamBuffer)) > 0) {
+                            bos.write(zipStreamBuffer, 0, len);
+                        }
+                    }
+                } else {
+                    // Create directory
+                    Files.createDirectories(filePath);
+                }
+                zipIn.closeEntry();
+            }
+        } finally {
+            inputStream.close();
+        }
+
+        return new MMapDirectory(outputDir);
     }
 
     private Directory downloadZipAndUnzipInDirectory(String zipFilePath) throws IOException {
