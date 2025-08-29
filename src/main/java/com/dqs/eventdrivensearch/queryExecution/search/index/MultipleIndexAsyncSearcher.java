@@ -32,6 +32,8 @@ public class MultipleIndexAsyncSearcher {
 
     private final List<S3SearchResultWriter> s3SearchResultWriters;
 
+    Semaphore numberOfVirtualThreadsAvailable = new Semaphore(12);
+
     public MultipleIndexAsyncSearcher(ApplicationContext context,
                                  MetricsPublisher metricsPublisher,
                                  @Value("${single_index_searcher_count}")
@@ -56,14 +58,13 @@ public class MultipleIndexAsyncSearcher {
     public void search(String searchQueryString, String queryId, String[] filePaths, String subQueryId) throws ParseException {
         Instant start = Instant.now();
         List<Future<CompletableFuture<Void>>> searchTasks = new ArrayList<>();
-        int totalAvailableCores = Runtime.getRuntime().availableProcessors() - 1;
-        final ExecutorService executorService = Executors.newWorkStealingPool(totalAvailableCores);
 
-        try {
+        try(ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor()) {
             final String queryResultLocation = outputFolderPath.endsWith("/")
                     ? outputFolderPath + queryId
                     : outputFolderPath + "/" + queryId;
             for (int idx = 0; idx < filePaths.length; idx++) {
+                numberOfVirtualThreadsAvailable.acquireUninterruptibly();
                 SingleIndexAsyncSearcher singleIndexAsyncSearcher = singleIndexAsyncSearchers.get(idx);
                 String filePath = filePaths[idx];
                 S3SearchResultWriter s3SearchResultWriter = s3SearchResultWriters.get(idx);
@@ -75,6 +76,8 @@ public class MultipleIndexAsyncSearcher {
                         System.out.println(String.format("Search for file %s has failed. The query id is %s and sub query id is %s", filePath, queryId, subQueryId));
                         logger.log(Level.WARNING, e.getMessage() + "\n" + e.getStackTrace() + "\n" + "filePath: " + filePath);
                         throw new RuntimeException(e);
+                    }finally{
+                        numberOfVirtualThreadsAvailable.release();
                     }
                 });
                 searchTasks.add(task);
@@ -85,7 +88,6 @@ public class MultipleIndexAsyncSearcher {
             System.out.println(e.getMessage() + "\n" + e.getStackTrace().toString());
             throw e;
         } finally {
-            executorService.shutdown();
             metricsPublisher.putMetricData(MetricsPublisher.MetricNames.INTERNAL_SEARCH_TIME, Duration.between(start, Instant.now()).toMillis(), queryId);
             metricsPublisher.publishToCloudWatch();
         }
