@@ -21,7 +21,8 @@ spec:
     spec:
       serviceAccountName: {{ printf "dqs-query-execution-%s-service-account" . }}
       nodeSelector:
-        kubernetes.io/arch: arm64
+#        kubernetes.io/arch: arm64
+        service.instanceTypeNodeLabelKey: c7g.8xlarge
       containers:
       - name: dqs-query-execution-container
         image: {{ $.Values.IMAGE_URI }}

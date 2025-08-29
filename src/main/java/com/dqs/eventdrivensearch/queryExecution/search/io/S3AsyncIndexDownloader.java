@@ -34,7 +34,6 @@ public class S3AsyncIndexDownloader {
     }
 
     public CompletableFuture<Void> downloadAndUnzipIndex(String filePath, String queryId, Path outputDir) {
-        InputStream inputStream = null;
         Instant start = Instant.now();
 
         try {
@@ -49,11 +48,10 @@ public class S3AsyncIndexDownloader {
 
             String localZipFilePath = outputDir.toAbsolutePath() + ".zip";
 
-//            return s3AsyncClient.getObject(getObjectRequest, AsyncResponseTransformer.toFile(Paths.get(localZipFilePath)))
-            return s3AsyncClient.getObject(getObjectRequest, AsyncResponseTransformer.toBlockingInputStream())
-            .thenAccept((result) -> {
+            return s3AsyncClient.getObject(getObjectRequest, AsyncResponseTransformer.toFile(Paths.get(localZipFilePath)))
+                    .thenAccept((result) -> {
                         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.DOWNLOAD_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
-                        unzipTheDownloadedFile(outputDir, result,  localZipFilePath, queryId);
+                        unzipTheDownloadedFile(outputDir, localZipFilePath, queryId);
                     })
                     .exceptionally(ex->{
                         throw new RuntimeException(ex.getMessage());
@@ -65,11 +63,10 @@ public class S3AsyncIndexDownloader {
         }
 
     }
-
-    private void unzipTheDownloadedFile(Path outputDir, InputStream inputStream,String localZipFilePath, String queryId) {
+    private void unzipTheDownloadedFile(Path outputDir, String localZipFilePath, String queryId) {
         Instant start = Instant.now();
         final int OPTIMAL_STREAM_BUFFER_SIZE = 1048576;
-        try (ZipInputStream zipIn = new ZipInputStream(new BufferedInputStream(inputStream))) {
+        try (ZipInputStream zipIn = new ZipInputStream(new BufferedInputStream(new FileInputStream(localZipFilePath), OPTIMAL_STREAM_BUFFER_SIZE))) {
             byte[] zipStreamBuffer = new byte[OPTIMAL_STREAM_BUFFER_SIZE];
             ZipEntry entry;
             while ((entry = zipIn.getNextEntry()) != null) {

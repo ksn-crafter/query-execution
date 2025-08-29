@@ -50,7 +50,7 @@ class SingleIndexSearcher {
     SearchResult search(String zipFilePath, Query query, String queryId) throws IOException {
         Directory directory = directoryCache.get(zipFilePath);
 
-        if(directory == null){
+        if (directory == null) {
             System.out.println("Its a cache miss for indexPath : " + zipFilePath);
             Path targetTempDirectory = Files.createTempDirectory("tempDirPrefix-");
             downloadZipAndUnzipInDirectory(zipFilePath, targetTempDirectory, queryId);
@@ -65,6 +65,7 @@ class SingleIndexSearcher {
         SearchResult searchResult = readResults(searcher, query);
         metricsPublisher.putMetricData(MetricsPublisher.MetricNames.SEARCH_SINGLE_INDEX_SHARD, Duration.between(start, Instant.now()).toMillis(), queryId);
 
+        //TODO: all delete temp directory here
         return searchResult;
     }
 
@@ -114,7 +115,6 @@ class SingleIndexSearcher {
     }
 
 
-
     private SearchResult readResults(org.apache.lucene.search.IndexSearcher searcher, Query query) throws IOException {
 
         final int optimalPageSize = 30000; // Number of results per page
@@ -148,6 +148,7 @@ class SingleIndexSearcher {
                 break;
             }
         }
+
 
         return new SearchResult(documentIds, searcher.getIndexReader().numDocs(), totalHits, documentIds.size());
     }

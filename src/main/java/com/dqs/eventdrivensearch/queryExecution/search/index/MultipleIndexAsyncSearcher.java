@@ -3,6 +3,7 @@ package com.dqs.eventdrivensearch.queryExecution.search.index;
 
 import com.dqs.eventdrivensearch.queryExecution.search.io.S3SearchResultWriter;
 import com.dqs.eventdrivensearch.queryExecution.search.metrics.MetricsPublisher;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.Query;
@@ -66,7 +67,7 @@ public class MultipleIndexAsyncSearcher {
                 SingleIndexAsyncSearcher singleIndexAsyncSearcher = singleIndexAsyncSearchers.get(idx);
                 String filePath = filePaths[idx];
                 S3SearchResultWriter s3SearchResultWriter = s3SearchResultWriters.get(idx);
-                var query = singleIndexAsyncSearcher.getQuery(searchQueryString, new StandardAnalyzer());
+                var query = singleIndexAsyncSearcher.getQuery(searchQueryString, new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET));
                 var task = executorService.submit(() -> {
                     try {
                         return searchOnSingleIndex(queryResultLocation, filePath, singleIndexAsyncSearcher, query, queryId, s3SearchResultWriter);
